@@ -5,8 +5,93 @@ from __future__ import with_statement
 import os
 import sys
 import errno
+import sqlite3
 
 from fuse import FUSE, FuseOSError, Operations
+from stat import *
+from os.path import abspath, join
+import thread
+
+class Database:
+
+    def __init__(self):
+        self.conn = None
+
+    def initialize(self):
+        with sqlite3.connect('testDB.db') as self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute('SELECT SQLITE_VERSION()')
+            data = cursor.fetchone()
+            print 'SQLite version: ', data
+
+            self.createTables()
+
+    def createTables(self):
+
+        self.conn.execute('''CREATE TABLE IF NOT EXISTS TAGS
+            ( FILE_NAME           TEXT    NOT NULL,
+                INODE            INT     NOT NULL,
+                TAG            TEXT     NOT NULL);''')
+
+class CommandHandler:
+
+    def __init__(self, db):
+        self.db = db
+        self.db_conn = db.conn
+
+    def process(self, inp_arr, db):
+        command = inp_arr[0]
+        if command == "tag":
+            file_name = abspath(join(os.getcwd(), inp_arr[1]))
+            tag_name = inp_arr[2]
+
+            if not self.FileExists(file_name):
+                print "File does not exist"
+                return
+
+            inode = self.getInode(file_name)
+            self.storeTagInDB(file_name, inode, tag_name)
+
+        elif command == "exit":
+            sys.exit()
+
+        elif command == "lstag":
+            if len(inp_arr) == 1:
+                # Display all files in current directory having tags
+                current_dir = os.getcwd()
+                cursor = self.db_conn.execute("SELECT FILE_NAME, inode, tag from TAGS where FILE_NAME like ?", (current_dir+'%',))
+                for row in cursor:
+                    print "File = ", row[0]
+                    print "Inode = ", row[1]
+                    print "tag = ", row[2], "\n"
+
+        elif command == "lscmd":
+            print "use lstag to see all tagged files in PWD"
+            print "use tag <filename> <tagname> to tag a file"
+            print "use exit to exit the program"
+
+        else:
+            print "Command not found, use lscmd to see list of available commands"
+
+
+
+    def FileExists(self, file_name):
+        if os.path.exists(file_name): 
+            return True
+        else:
+            return False
+
+    def getInode(self, file_path):
+        stat = os.stat(file_path);
+        return stat[ST_INO]
+
+    def storeTagInDB(self, file_name, inode, tag_name):
+        print "Received inode ", inode
+        params = (file_name, inode, tag_name)
+        self.db_conn.execute("INSERT INTO TAGS (FILE_NAME, INODE, TAG) \
+            VALUES (?, ?, ? )", params);
+        self.db_conn.commit()
+
 
 
 class Passthrough(Operations):
@@ -128,7 +213,15 @@ class Passthrough(Operations):
 
 
 def main(mountpoint, root):
+    db = Database()
+    db.initialize()
+    chandler = CommandHandler(db)
     FUSE(Passthrough(root), mountpoint, nothreads=True, foreground=True)
+    print "use lscmd command to view all commands and their usage"
+    while(True):
+        inp = raw_input('tagfs#: ')
+        inp_arr = inp.strip().split(" ")
+        chandler.process(inp_arr, db)
 
 if __name__ == '__main__':
     main(sys.argv[2], sys.argv[1])
