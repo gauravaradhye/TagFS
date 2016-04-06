@@ -49,8 +49,11 @@ class CommandHandler:
                 print "File does not exist"
                 return
 
-            inode = self.getInode(file_name)
-            self.storeTagInDB(file_name, inode, tag_name)
+            files = self.getDirectoryFiles(file_name)
+            for file in files:
+                print "received file " + file
+                inode = self.getInode(file)
+                self.storeTagInDB(file, inode, tag_name)
 
         elif command == "exit":
             sys.exit()
@@ -58,12 +61,14 @@ class CommandHandler:
         elif command == "lstag":
             if len(inp_arr) == 1:
                 # Display all files in current directory having tags
-                current_dir = os.getcwd()
-                cursor = self.db_conn.execute("SELECT FILE_NAME, inode, tag from TAGS where FILE_NAME like ?", (current_dir+'%',))
-                for row in cursor:
-                    print "File = ", row[0]
-                    print "Inode = ", row[1]
-                    print "tag = ", row[2], "\n"
+                dir_path = os.getcwd()
+            elif len(inp_arr) == 2:
+                dir_path = inp_arr[1]
+            cursor = self.db_conn.execute("SELECT FILE_NAME, inode, tag from TAGS where FILE_NAME like ?", (dir_path+'%',))
+            for row in cursor:
+                print "File = ", row[0]
+                print "Inode = ", row[1]
+                print "tag = ", row[2], "\n"
 
         elif command == "lscmd":
             print "use lstag to see all tagged files in PWD"
@@ -72,6 +77,30 @@ class CommandHandler:
 
         else:
             print "Command not found, use lscmd to see list of available commands"
+
+
+    def getDirectoryFiles(self, path):
+        '''recursively descend the directory tree rooted at path,
+        return list of files under path'''
+
+        if S_ISREG(os.stat(path)[ST_MODE]):
+            print path + " is regular file"
+            return [path]
+
+        files = []
+
+        for sub_path in os.listdir(path):
+            pathname = os.path.join(path, sub_path)
+            mode = os.stat(pathname)[ST_MODE]
+            if S_ISDIR(mode):
+                # It's a directory, recurse into it
+                print path + " is directory file"
+                files += getDirectoryFiles(pathname)
+            elif S_ISREG(mode):
+                print path + " is regular file"
+                # It's a file, call the callback function
+                files.append(pathname)
+        return files
 
 
 
@@ -86,7 +115,7 @@ class CommandHandler:
         return stat[ST_INO]
 
     def storeTagInDB(self, file_name, inode, tag_name):
-        print "Received inode ", inode
+        #print "Received inode ", inode
         params = (file_name, inode, tag_name)
         self.db_conn.execute("INSERT INTO TAGS (FILE_NAME, INODE, TAG) \
             VALUES (?, ?, ? )", params);
