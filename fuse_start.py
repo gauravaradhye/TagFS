@@ -7,11 +7,18 @@ import sys
 import errno
 import sqlite3
 
+from collections import defaultdict
+from pprint import pprint
+
+from hachoir_metadata import metadata
+from hachoir_core.cmd_line import unicodeFilename
+from hachoir_parser import createParser
 from fuse import FUSE, FuseOSError, Operations
 from stat import *
 from os.path import abspath, join
 import thread
 import ntpath
+
 
 class Database:
 
@@ -118,7 +125,7 @@ class Passthrough(Operations):
 
     def readdir(self, path, fh):
         full_path = self._full_path(path)
-
+	#print(path)
         dirents = ['.', '..']
         if os.path.isdir(full_path):
             dirents.extend(os.listdir(full_path))
@@ -206,13 +213,28 @@ class Passthrough(Operations):
             f.truncate(length)
 
     def flush(self, path, fh):
+    	#print(path)
         return os.fsync(fh)
 
     def release(self, path, fh):
-        return os.close(fh)
+    	#print(os.path.splitext(path)[1])
+    	#print(os.path.splitext(path))
+    	if(os.path.splitext(path)[1] == '.mp3'):
+    		full_path = self._full_path(path)
+    		#filename = path
+    		#filename, realname = unicodeFilename(filename), filename
+    		parser = createParser(full_path)
+
+    		metalist = metadata.extractMetadata(parser).exportPlaintext()
+    		
+    		for item in metalist:
+    			print(item)
+
+    	return os.close(fh)
 
     def fsync(self, path, fdatasync, fh):
-        return self.flush(path, fh)
+    	return self.flush(path,fh)
+
 
 
 def main(mountpoint, root):
