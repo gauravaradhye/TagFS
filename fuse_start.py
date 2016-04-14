@@ -18,20 +18,22 @@ from stat import *
 from os.path import abspath, join
 import thread
 import ntpath
+import json
 
 
 class Database:
+    def __init__(self):
+        self.conn = None
+        with open('config.json') as config_file:  
+            self.config = json.load(config_file)
 
-	def __init__(self):
-		self.conn = None
-
-	def initialize(self):
-		with sqlite3.connect('testDB.db') as self.conn:
-			cursor = self.conn.cursor()
-			cursor.execute('SELECT SQLITE_VERSION()')
-			data = cursor.fetchone()
-			print 'SQLite version: ', data
-
+    def initialize(self):
+        print self.config
+        with sqlite3.connect(self.config["db"]["path"]) as self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute('SELECT SQLITE_VERSION()')
+            data = cursor.fetchone()
+            print 'SQLite version: ', data
 			self.createTables()
 		return self.conn
 
@@ -90,168 +92,172 @@ class MiscFunctions:
 
 
 class Passthrough(Operations):
-	def __init__(self, root):
-		self.db_conn = Database().initialize()
-		self.root = root
+    def __init__(self, root):
+        self.db_conn = Database().initialize()
+        self.root = root
 
-	# Helpers
-	# =======
+    # Helpers
+    # =======
 
-	def _full_path(self, partial):
-		if partial.startswith("/"):
-			partial = partial[1:]
-		path = os.path.join(self.root, partial)
-		return path
+    def _full_path(self, partial):
+        if partial.startswith("/"):
+            partial = partial[1:]
+        path = os.path.join(self.root, partial)
+        return path
 
-	# Filesystem methods
-	# ==================
+    # Filesystem methods
+    # ==================
 
-	def access(self, path, mode):
-		full_path = self._full_path(path)
-		if not os.access(full_path, mode):
-			raise FuseOSError(errno.EACCES)
+    def access(self, path, mode):
+        full_path = self._full_path(path)
+        if not os.access(full_path, mode):
+            raise FuseOSError(errno.EACCES)
 
-	def chmod(self, path, mode):
-		full_path = self._full_path(path)
-		return os.chmod(full_path, mode)
+    def chmod(self, path, mode):
+        full_path = self._full_path(path)
+        return os.chmod(full_path, mode)
 
-	def chown(self, path, uid, gid):
-		full_path = self._full_path(path)
-		return os.chown(full_path, uid, gid)
+    def chown(self, path, uid, gid):
+        full_path = self._full_path(path)
+        return os.chown(full_path, uid, gid)
 
-	def getattr(self, path, fh=None):
-		full_path = self._full_path(path)
-		st = os.lstat(full_path)
-		return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
-					 'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
+    def getattr(self, path, fh=None):
+        full_path = self._full_path(path)
+        st = os.lstat(full_path)
+        return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
+                     'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
 
-	def readdir(self, path, fh):
-		full_path = self._full_path(path)
-		dirents = ['.', '..']
-		if os.path.isdir(full_path):
-			dirents.extend(os.listdir(full_path))
-		for r in dirents:
-			yield r
+    def readdir(self, path, fh):
+        full_path = self._full_path(path)
+        dirents = ['.', '..']
+        if os.path.isdir(full_path):
+            dirents.extend(os.listdir(full_path))
+        for r in dirents:
+            yield r
 
-	def readlink(self, path):
-		pathname = os.readlink(self._full_path(path))
-		if pathname.startswith("/"):
-			# Path name is absolute, sanitize it.
-			return os.path.relpath(pathname, self.root)
-		else:
-			return pathname
+    def readlink(self, path):
+        pathname = os.readlink(self._full_path(path))
+        if pathname.startswith("/"):
+            # Path name is absolute, sanitize it.
+            return os.path.relpath(pathname, self.root)
+        else:
+            return pathname
 
-	def mknod(self, path, mode, dev):
-		return os.mknod(self._full_path(path), mode, dev)
+    def mknod(self, path, mode, dev):
+        return os.mknod(self._full_path(path), mode, dev)
 
-	def rmdir(self, path):
-		full_path = self._full_path(path)
-		return os.rmdir(full_path)
+    def rmdir(self, path):
+        full_path = self._full_path(path)
+        return os.rmdir(full_path)
 
-	def mkdir(self, path, mode):
-		return os.mkdir(self._full_path(path), mode)
+    def mkdir(self, path, mode):
+        return os.mkdir(self._full_path(path), mode)
 
-	def statfs(self, path):
-		full_path = self._full_path(path)
-		stv = os.statvfs(full_path)
-		return dict((key, getattr(stv, key)) for key in ('f_bavail', 'f_bfree',
-			'f_blocks', 'f_bsize', 'f_favail', 'f_ffree', 'f_files', 'f_flag',
-			'f_frsize', 'f_namemax'))
+    def statfs(self, path):
+        full_path = self._full_path(path)
+        stv = os.statvfs(full_path)
+        return dict((key, getattr(stv, key)) for key in ('f_bavail', 'f_bfree',
+            'f_blocks', 'f_bsize', 'f_favail', 'f_ffree', 'f_files', 'f_flag',
+            'f_frsize', 'f_namemax'))
 
-	def unlink(self, path):
-		#print path
-		return os.unlink(self._full_path(path))
+    def unlink(self, path):
+        return os.unlink(self._full_path(path))
 
-	def symlink(self, name, target):
-		return os.symlink(name, self._full_path(target))
+    def symlink(self, name, target):
+        return os.symlink(name, self._full_path(target))
 
-	def rename(self, old, new):
-		return os.rename(self._full_path(old), self._full_path(new))
+    def rename(self, old, new):
+        return os.rename(self._full_path(old), self._full_path(new))
 
-	def link(self, target, name):
-		return os.link(self._full_path(target), self._full_path(name))
+    def link(self, target, name):
+        return os.link(self._full_path(target), self._full_path(name))
 
-	def utimens(self, path, times=None):
-		return os.utime(self._full_path(path), times)
+    def utimens(self, path, times=None):
+        return os.utime(self._full_path(path), times)
 
-	# File methods
-	# ============
+    # File methods
+    # ============
 
-	def open(self, path, flags):
-		full_path = self._full_path(path)
-		return os.open(full_path, flags)
+    def open(self, path, flags):
+        full_path = self._full_path(path)
+        return os.open(full_path, flags)
 
-	def create(self, path, mode, fi=None):
-		full_path = self._full_path(path)
-		return os.open(full_path, os.O_WRONLY | os.O_CREAT, mode)
+    def create(self, path, mode, fi=None):
+        full_path = self._full_path(path)
+        return os.open(full_path, os.O_WRONLY | os.O_CREAT, mode)
 
-	def read(self, path, length, offset, fh):
-		os.lseek(fh, offset, os.SEEK_SET)
-		return os.read(fh, length)
+    def read(self, path, length, offset, fh):
+        os.lseek(fh, offset, os.SEEK_SET)
+        return os.read(fh, length)
 
-	def write(self, path, buf, offset, fh):
-		if ntpath.basename(path) == ".tag":
-			path = self._full_path(path)[:-4]
-			for line in buf:
-				contents  = line.split(" ")
-				if len(contents) == 1:
-					tag_name = contents[0]
-					if os.path.exists(path):
-						print "path exists"
-						files = MiscFunctions.getDirectoryFiles(path)
-						for file in files:
-							print "file is %s" % file
-							if MiscFunctions.FileExists(file):
-								print "File exists"
-								inode = MiscFunctions.getInode(file)
-								print "Inode is %s" % inode
-								print "Writing to Database"
-								MiscFunctions.storeTagInDB(file, inode, tag_name, self.db_conn)
-							else:
-								print "File does not exist"
-					else:
-						print "Path does not exist"
+    def write(self, path, buf, offset, fh):
+        orig_path = path
+        if ntpath.basename(path) == ".tag":
+            print "buffer is %s" % buf
+            for command in buf.splitlines():
+                contents = command.split(" ")
+                print "contents is %s" % contents
+                if len(contents) == 1:
+                    if len(contents) == 1:
+                        path = self._full_path(orig_path)[:-4]
+                    else:
+                        path = orig_path
+                    tag_name = contents[0]
+                    if os.path.exists(path):
+                        files = MiscFunctions.getDirectoryFiles(path)
+                        for file in files:
+                            if MiscFunctions.FileExists(file):
+                                inode = MiscFunctions.getInode(file)
+                                MiscFunctions.storeTagInDB(file, inode, tag_name, self.db_conn)
+                    else:
+                        print "Path does not exist"
+                elif len(contents) == 2:
+                    file_name = contents[0]
+                    tag_name = contents[1]
+                    file_path = self._full_path(orig_path[:-4] + file_name)
 
-		os.lseek(fh, offset, os.SEEK_SET)
-		return os.write(fh, buf)
+                    if MiscFunctions.FileExists(file_path):
+                        inode = MiscFunctions.getInode(file_path)
+                        MiscFunctions.storeTagInDB(file_path, inode, tag_name, self.db_conn)
+                    else:
+                        print "File does not exist"
 
-	def truncate(self, path, length, fh=None):
-		full_path = self._full_path(path)
-		with open(full_path, 'r+') as f:
-			f.truncate(length)
+        os.lseek(fh, offset, os.SEEK_SET)
+        return os.write(fh, buf)
 
-	def flush(self, path, fh):
-		#print(path)
-		return os.fsync(fh)
+    def truncate(self, path, length, fh=None):
+        full_path = self._full_path(path)
+        with open(full_path, 'r+') as f:
+            f.truncate(length)
 
-	def release(self, path, fh):
-		#print(os.path.splitext(path)[1])
-		#print(os.path.splitext(path))
-		#print(os.path.splitext(path)[1][1:].lower())
-		if(os.path.splitext(path)[1][1:].lower() in ['mp3','bzip2','gzip','zip','tar','wav','midi','bmp','gif','jpeg','jpg','png','tiff','exe','wmv','mkv','mov']):
-			full_path = self._full_path(path)
-			#filename = path
-			#filename, realname = unicodeFilename(filename), filename
-			parser = createParser(full_path)
-			metalist = metadata.extractMetadata(parser).exportPlaintext()
-			#print(metalist)
-			for item in metalist:
-				x = item.split(':')[0] 
-				if item.split(':')[0][2:].lower() in ["author","album","music genre"]:
-					print(item.split(':')[1][1:])
-					tag_name = item.split(':')[1][1:]
-					inode = MiscFunctions.getInode(full_path)
-					MiscFunctions.storeTagInDB(full_path, inode, tag_name, self.db_conn)
-					print "Inode is %s " % inode
-			print("Database storage successful")
-		return os.close(fh)
+    def flush(self, path, fh):
+    	#print(path)
+        return os.fsync(fh)
 
-	def fsync(self, path, fdatasync, fh):
-		return self.flush(path,fh)
+    def release(self, path, fh):
+        #print(os.path.splitext(path)[1])
+        #print(os.path.splitext(path))
+        #print(os.path.splitext(path)[1][1:].lower())
+        if(os.path.splitext(path)[1][1:].lower() in ['mp3','bzip2','gzip','zip','tar','wav','midi','bmp','gif','jpeg','jpg','png','tiff','exe','wmv','mkv','mov']):
+            full_path = self._full_path(path)
+            #filename = path
+            #filename, realname = unicodeFilename(filename), filename
+            parser = createParser(full_path)
+            metalist = metadata.extractMetadata(parser).exportPlaintext()
+            #print(metalist)
+            for item in metalist:
+                x = item.split(':')[0] 
+                if item.split(':')[0][2:].lower() in ["author","album","music genre"]:
+                    print(item.split(':')[1][1:])
+                    tag_name = item.split(':')[1][1:]
+                    inode = MiscFunctions.getInode(full_path)
+                    MiscFunctions.storeTagInDB(full_path, inode, tag_name, self.db_conn)
+                    print "Inode is %s " % inode
+            print("Database storage successful")
+        return os.close(fh)
 
-
-
-
+    def fsync(self, path, fdatasync, fh):
+    	return self.flush(path,fh)
 
 def main(mountpoint, root):
 	FUSE(Passthrough(root), mountpoint, nothreads=True, foreground=True)

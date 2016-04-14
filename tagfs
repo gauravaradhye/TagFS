@@ -1,0 +1,3 @@
+#!/bin/bash
+
+python /usr/local/bin/TBFS/fuse_start.py $1 $2 
