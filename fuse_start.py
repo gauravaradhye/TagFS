@@ -33,6 +33,7 @@ class Database:
             print 'SQLite version: ', data
 
             self.createTables()
+        return self.conn
 
     def createTables(self):
 
@@ -75,7 +76,7 @@ class MiscFunctions:
             return False
 
     @classmethod
-    def storeTagInDB(cls, file_name, inode, tag_name):
+    def storeTagInDB(cls, file_name, inode, tag_name, db_conn):
         params = (file_name, inode, tag_name)
         db_conn.execute("INSERT INTO TAGS (FILE_NAME, INODE, TAG) \
             VALUES (?, ?, ? )", params);
@@ -90,6 +91,7 @@ class MiscFunctions:
 
 class Passthrough(Operations):
     def __init__(self, root):
+        self.db_conn = Database().initialize()
         self.root = root
 
     # Helpers
@@ -125,7 +127,6 @@ class Passthrough(Operations):
 
     def readdir(self, path, fh):
         full_path = self._full_path(path)
-	#print(path)
         dirents = ['.', '..']
         if os.path.isdir(full_path):
             dirents.extend(os.listdir(full_path))
@@ -188,22 +189,28 @@ class Passthrough(Operations):
         return os.read(fh, length)
 
     def write(self, path, buf, offset, fh):
-        path = self._full_path(path)[:-4]
         if ntpath.basename(path) == ".tag":
+            path = self._full_path(path)[:-4]
             for line in buf:
                 contents  = line.split(" ")
                 if len(contents) == 1:
                     tag_name = contents[0]
                     if os.path.exists(path):
+                        print "path exists"
                         files = MiscFunctions.getDirectoryFiles(path)
                         for file in files:
                             print "file is %s" % file
-                            filename = path[:-4] + file
-                            if MiscFunctions.FileExists(filename):
-                                inode = MiscFunctions.getInode(filename)
-                                MiscFunctions.storeTagInDB(filename, inode, tag_name)
+                            if MiscFunctions.FileExists(file):
+                                print "File exists"
+                                inode = MiscFunctions.getInode(file)
+                                print "Inode is %s" % inode
+                                print "Writing to Database"
+                                MiscFunctions.storeTagInDB(file, inode, tag_name, self.db_conn)
+                            else:
+                                print "File does not exist"
                     else:
                         print "Path does not exist"
+
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
 
@@ -238,12 +245,6 @@ class Passthrough(Operations):
 
 
 def main(mountpoint, root):
-    global db_conn
-    global mnt_pnt
-    mnt_pnt = mountpoint
-    db = Database()
-    db_conn = db.conn
-    db.initialize()
     FUSE(Passthrough(root), mountpoint, nothreads=True, foreground=True)
 
 if __name__ == '__main__':
