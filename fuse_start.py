@@ -34,7 +34,7 @@ class Database:
             cursor.execute('SELECT SQLITE_VERSION()')
             data = cursor.fetchone()
             print 'SQLite version: ', data
-			self.createTables()
+            self.createTables()
 		return self.conn
 
 	def createTables(self):
