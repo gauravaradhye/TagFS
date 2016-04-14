@@ -226,7 +226,7 @@ class Passthrough(Operations):
     def release(self, path, fh):
     	#print(os.path.splitext(path)[1])
     	#print(os.path.splitext(path))
-    	if(os.path.splitext(path)[1] == '.mp3'):
+    	if(os.path.splitext(path)[1][1:].lower() in ['mp3','bzip2','gzip','zip','tar','wav','midi','bmp','gif','jpeg','jpg','png','tiff','exe','wmv','mkv','mov']):
     		full_path = self._full_path(path)
     		#filename = path
     		#filename, realname = unicodeFilename(filename), filename
@@ -235,7 +235,12 @@ class Passthrough(Operations):
     		metalist = metadata.extractMetadata(parser).exportPlaintext()
     		
     		for item in metalist:
-    			print(item)
+    			mdata = item.split(":")
+    			
+    			if (mdata[1] in ['Author']):
+    				print(mdata[1])
+
+
 
     	return os.close(fh)
 
