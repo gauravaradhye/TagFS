@@ -24,7 +24,7 @@ import json
 class Database:
     def __init__(self):
         self.conn = None
-        with open('config.json') as config_file:  
+        with open('/usr/local/bin/TBFS/config.json') as config_file:
             self.config = json.load(config_file)
 
     def initialize(self):
