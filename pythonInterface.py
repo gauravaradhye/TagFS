@@ -24,6 +24,7 @@ class CommandHandler:
         tagdata = " ".join(inp_arr[0][1:])
         if command == "tag":
             os.system("echo %s >> %s/.tag" % (tagdata, cwd))
+            os.system("rm %s/.tag" % cwd)
 
         elif command == "exit":
             sys.exit()

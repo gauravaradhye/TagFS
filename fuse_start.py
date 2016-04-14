@@ -39,9 +39,10 @@ class Database:
 
     def createTables(self):
         self.conn.execute('''CREATE TABLE IF NOT EXISTS TAGS
-            ( FILE_NAME           TEXT    NOT NULL,
-                INODE            INT     NOT NULL,
-                TAG            TEXT     NOT NULL);''')
+                        ( FILE_NAME           TEXT    NOT NULL,
+                          INODE            INT     NOT NULL,
+                          TAG            TEXT     NOT NULL,
+                          primary key (FILE_NAME, INODE, TAG));''')
 
 class MiscFunctions:
 
@@ -79,8 +80,11 @@ class MiscFunctions:
     @classmethod
     def storeTagInDB(cls, file_name, inode, tag_name, db_conn):
         params = (file_name, inode, tag_name)
-        db_conn.execute("INSERT INTO TAGS (FILE_NAME, INODE, TAG) \
-            VALUES (?, ?, ? )", params);
+        try:
+            db_conn.execute("INSERT INTO TAGS (FILE_NAME, INODE, TAG) \
+                             VALUES (?, ?, ? )", params);
+        except sqlite3.IntegrityError:
+            pass
         db_conn.commit()
 
     @classmethod
