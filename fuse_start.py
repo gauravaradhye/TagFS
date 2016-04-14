@@ -98,6 +98,10 @@ class MiscFunctions:
         db_conn.execute("DELETE FROM TAGS WHERE FILE_NAME='%s'" % file_name)
         db_conn.commit()
 
+    @classmethod
+    def renameFile(cls, old_name, new_name, db_conn):
+        db_conn.execute("UPDATE TAGS SET FILE_NAME = ? WHERE FILE_NAME = ?", (new_name, old_name))
+
 
 class Passthrough(Operations):
     def __init__(self, root):
@@ -181,6 +185,9 @@ class Passthrough(Operations):
         return os.symlink(name, self._full_path(target))
 
     def rename(self, old, new):
+        full_old_path = self._full_path(old)
+        full_new_path = self._full_path(new)
+        MiscFunctions.renameFile(full_old_path, full_new_path, self.db_conn)
         return os.rename(self._full_path(old), self._full_path(new))
 
     def link(self, target, name):
@@ -259,6 +266,8 @@ class Passthrough(Operations):
                     tag_name = item.split(':')[1][1:]
                     files = MiscFunctions.getDirectoryFiles(full_path)
                     for file in files:
+                        #print file
+                        #print full_path
                         inode = MiscFunctions.getInode(file)
                         file_name = os.path.basename(path)
                         MiscFunctions.storeTagInDB(file, inode, tag_name, self.db_conn)
