@@ -39,55 +39,60 @@ class Database:
 
     def createTables(self):
         self.conn.execute('''CREATE TABLE IF NOT EXISTS TAGS
-			( FILE_NAME           TEXT    NOT NULL,
-				INODE            INT     NOT NULL,
-				TAG            TEXT     NOT NULL);''')
+            ( FILE_NAME           TEXT    NOT NULL,
+                INODE            INT     NOT NULL,
+                TAG            TEXT     NOT NULL);''')
 
 class MiscFunctions:
 
-	@classmethod
-	def getDirectoryFiles(cls, path):
-		'''recursively descend the directory tree rooted at path,
-		return list of files under path'''
+    @classmethod
+    def getDirectoryFiles(cls, path):
+        '''recursively descend the directory tree rooted at path,
+        return list of files under path'''
 
-		if S_ISREG(os.stat(path)[ST_MODE]):
-			print path + " is regular file"
-			return [path]
+        if S_ISREG(os.stat(path)[ST_MODE]):
+            print path + " is regular file"
+            return [path]
 
-		files = []
+        files = []
 
-		for sub_path in os.listdir(path):
-			pathname = os.path.join(path, sub_path)
-			mode = os.stat(pathname)[ST_MODE]
-			if S_ISDIR(mode):
-				# It's a directory, recurse into it
-				print path + " is directory file"
-				files += getDirectoryFiles(pathname)
-			elif S_ISREG(mode):
-				print path + " is regular file"
-				# It's a file, call the callback function
-				files.append(pathname)
-		return files
+        for sub_path in os.listdir(path):
+            pathname = os.path.join(path, sub_path)
+            mode = os.stat(pathname)[ST_MODE]
+            if S_ISDIR(mode):
+                # It's a directory, recurse into it
+                print path + " is directory file"
+                files += getDirectoryFiles(pathname)
+            elif S_ISREG(mode):
+                print path + " is regular file"
+                # It's a file, call the callback function
+                files.append(pathname)
+        return files
 
-	@classmethod
-	def FileExists(cls, file_name):
-		if os.path.exists(file_name): 
-			return True
-		else:
-			return False
+    @classmethod
+    def FileExists(cls, file_name):
+        if os.path.exists(file_name): 
+            return True
+        else:
+            return False
 
-	@classmethod
-	def storeTagInDB(cls, file_name, inode, tag_name, db_conn):
-		params = (file_name, inode, tag_name)
-		db_conn.execute("INSERT INTO TAGS (FILE_NAME, INODE, TAG) \
-			VALUES (?, ?, ? )", params);
-		db_conn.commit()
+    @classmethod
+    def storeTagInDB(cls, file_name, inode, tag_name, db_conn):
+        params = (file_name, inode, tag_name)
+        db_conn.execute("INSERT INTO TAGS (FILE_NAME, INODE, TAG) \
+            VALUES (?, ?, ? )", params);
+        db_conn.commit()
 
-	@classmethod
-	def getInode(cls, file_path):
-		stat = os.stat(file_path);
-		return stat[ST_INO]
+    @classmethod
+    def getInode(cls, file_path):
+        stat = os.stat(file_path);
+        return stat[ST_INO]
 
+    @classmethod
+    def removeFromDB(cls, file_name, db_conn):
+        print(file_name)
+        db_conn.execute("DELETE FROM TAGS WHERE FILE_NAME='%s'" % file_name)
+        db_conn.commit()
 
 
 class Passthrough(Operations):
@@ -160,6 +165,12 @@ class Passthrough(Operations):
             'f_frsize', 'f_namemax'))
 
     def unlink(self, path):
+        #print path
+        full_path = self._full_path(path)
+        file_name = os.path.basename(path)
+        files = MiscFunctions.getDirectoryFiles(full_path)
+        for file in files:
+            MiscFunctions.removeFromDB(file, self.db_conn)
         return os.unlink(self._full_path(path))
 
     def symlink(self, name, target):
@@ -230,7 +241,7 @@ class Passthrough(Operations):
             f.truncate(length)
 
     def flush(self, path, fh):
-    	#print(path)
+        #print(path)
         return os.fsync(fh)
 
     def release(self, path, fh):
@@ -249,17 +260,20 @@ class Passthrough(Operations):
                 if item.split(':')[0][2:].lower() in ["author","album","music genre"]:
                     print(item.split(':')[1][1:])
                     tag_name = item.split(':')[1][1:]
-                    inode = MiscFunctions.getInode(full_path)
-                    MiscFunctions.storeTagInDB(full_path, inode, tag_name, self.db_conn)
-                    print "Inode is %s " % inode
+                    files = MiscFunctions.getDirectoryFiles(full_path)
+                    for file in files:
+                        inode = MiscFunctions.getInode(file)
+                        file_name = os.path.basename(path)
+                        MiscFunctions.storeTagInDB(file, inode, tag_name, self.db_conn)
+                        print "Inode is %s " % inode
             print("Database storage successful")
         return os.close(fh)
 
     def fsync(self, path, fdatasync, fh):
-    	return self.flush(path,fh)
+        return self.flush(path,fh)
 
 def main(mountpoint, root):
-	FUSE(Passthrough(root), mountpoint, nothreads=True, foreground=True)
+    FUSE(Passthrough(root), mountpoint, nothreads=True, foreground=True)
 
 if __name__ == '__main__':
-	main(sys.argv[2], sys.argv[1])
+    main(sys.argv[2], sys.argv[1])
