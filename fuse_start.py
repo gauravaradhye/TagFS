@@ -35,11 +35,10 @@ class Database:
             data = cursor.fetchone()
             print 'SQLite version: ', data
             self.createTables()
-		return self.conn
+        return self.conn
 
-	def createTables(self):
-
-		self.conn.execute('''CREATE TABLE IF NOT EXISTS TAGS
+    def createTables(self):
+        self.conn.execute('''CREATE TABLE IF NOT EXISTS TAGS
 			( FILE_NAME           TEXT    NOT NULL,
 				INODE            INT     NOT NULL,
 				TAG            TEXT     NOT NULL);''')
