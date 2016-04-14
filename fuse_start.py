@@ -245,20 +245,13 @@ class Passthrough(Operations):
             f.truncate(length)
 
     def flush(self, path, fh):
-        #print(path)
         return os.fsync(fh)
 
     def release(self, path, fh):
-        #print(os.path.splitext(path)[1])
-        #print(os.path.splitext(path))
-        #print(os.path.splitext(path)[1][1:].lower())
         if(os.path.splitext(path)[1][1:].lower() in ['mp3','bzip2','gzip','zip','tar','wav','midi','bmp','gif','jpeg','jpg','png','tiff','exe','wmv','mkv','mov']):
             full_path = self._full_path(path)
-            #filename = path
-            #filename, realname = unicodeFilename(filename), filename
             parser = createParser(full_path)
             metalist = metadata.extractMetadata(parser).exportPlaintext()
-            #print(metalist)
             for item in metalist:
                 x = item.split(':')[0] 
                 if item.split(':')[0][2:].lower() in ["author","album","music genre"]:

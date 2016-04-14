@@ -18,17 +18,13 @@ class CommandHandler:
         self.db_conn = db_conn
 
     def process(self, cwd, *inp_arr):
-        print "inp_arr is %s" % inp_arr
         command = inp_arr[0][0]
-        print "command is %s" % inp_arr[0][0]
         tagdata = " ".join(inp_arr[0][1:])
         if command == "tag":
             os.system("echo %s >> %s/.tag" % (tagdata, cwd))
             os.system("rm %s/.tag" % cwd)
-
         elif command == "exit":
             sys.exit()
-
         elif command == "lstag":
             if len(inp_arr) == 1:
                 # Display all files in current directory having tags
