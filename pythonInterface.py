@@ -6,7 +6,7 @@ import os
 import sys
 import errno
 import sqlite3
-
+import json
 from fuse import FUSE, FuseOSError, Operations
 from stat import *
 from os.path import abspath, join
@@ -18,9 +18,12 @@ class CommandHandler:
         self.db_conn = db_conn
 
     def process(self, cwd, *inp_arr):
-        command = inp_arr[0]
+        print "inp_arr is %s" % inp_arr
+        command = inp_arr[0][0]
+        print "command is %s" % inp_arr[0][0]
+        tagdata = " ".join(inp_arr[0][1:])
         if command == "tag":
-            
+            os.system("echo %s >> %s/.tag" % (tagdata, cwd))
 
         elif command == "exit":
             sys.exit()
@@ -47,12 +50,11 @@ class CommandHandler:
 
 
 def main(cwd, *args):
-    with open('config.json') as config_file:  
-        self.config = json.load(config_file)
-    db_conn = sqlite3.connect(self.config["db"]["path"]);
+    with open('/usr/local/bin/TBFS/config.json') as config_file:  
+        config = json.load(config_file)
+    db_conn = sqlite3.connect(config["db"]["path"]);
     chandler = CommandHandler(db_conn)
-    #print "use lscmd command to view all commands and their usage"
     chandler.process(cwd, *args)
 
 if __name__ == '__main__':
-    main(sys.args)
+    main(sys.argv[1], sys.argv[2:])
