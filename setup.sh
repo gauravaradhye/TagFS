@@ -1,15 +1,23 @@
+if [ $# -eq 0 ]; then
+    setupPath="/usr/local/bin"
+else
+    setupPath=$1
+fi
+
 pip install hachoir-metadata
 pip install hachoir-core
 pip install hachoir-parser
 
-mkdir -p /usr/local/bin/TBFS/
+python createConfig.py ${setupPath}
 
-cp tag /usr/local/bin/
-chmod +x /usr/local/bin/tag
+mkdir -p ${setupPath}/TBFS/
 
-cp tagfs /usr/local/bin/
-chmod +x /usr/local/bin/tagfs 
+cp tag ${setupPath}/
+chmod +x ${setupPath}/tag
 
-cp config.json /usr/local/bin/TBFS/
-cp pythonInterface.py /usr/local/bin/TBFS/
-cp fuse_start.py /usr/local/bin/TBFS/
+cp tagfs ${setupPath}/
+chmod +x ${setupPath}/tagfs 
+
+cp config.json ${setupPath}/TBFS/
+cp pythonInterface.py ${setupPath}/TBFS/
+cp fuse_start.py ${setupPath}/TBFS/

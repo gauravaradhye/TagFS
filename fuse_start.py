@@ -29,7 +29,7 @@ class Database:
 
     def initialize(self):
         print self.config
-        with sqlite3.connect(self.config["db"]["path"]) as self.conn:
+        with sqlite3.connect(self.config["path"]+"/TBFS/tags.db") as self.conn:
             cursor = self.conn.cursor()
             cursor.execute('SELECT SQLITE_VERSION()')
             data = cursor.fetchone()

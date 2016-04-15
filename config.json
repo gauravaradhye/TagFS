@@ -1,6 +1,1 @@
-{
-	"db":
-	    {
-	        "path": "/usr/local/bin/TBFS/tags.db"
-	    }
-}
+{"path": "/usr/local/bin/"}
