@@ -21,3 +21,4 @@ chmod +x ${setupPath}/tagfs
 cp config.json ${setupPath}/TBFS/
 cp pythonInterface.py ${setupPath}/TBFS/
 cp fuse_start.py ${setupPath}/TBFS/
+

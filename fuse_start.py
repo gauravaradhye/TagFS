@@ -107,9 +107,51 @@ class Passthrough(Operations):
     def __init__(self, root):
         self.db_conn = Database().initialize()
         self.root = root
-
     # Helpers
     # =======
+    def ls_tags(self, path, buf):
+        if len(inp_arr) == 1:
+                # Display all files in current directory having tags
+                dir_path = self.root_path
+        elif len(inp_arr) == 2:
+            dir_path = inp_arr[1]
+        cursor = self.db_conn.execute("SELECT FILE_NAME, inode, tag from TAGS where FILE_NAME like ?", (dir_path+'%',))
+        for row in cursor:
+            print os.stat(row[0])
+            print "File = ", row[0]
+            print "Inode = ", row[1]
+            print "tags = ", row[2], "\n"
+
+    def add_tag(self, path, buf):
+        orig_path = path
+        print "buffer is %s" % buf
+        for command in buf.splitlines():
+            contents = command.split(" ")
+            print "contents is %s" % contents
+            if len(contents) == 1:
+                if len(contents) == 1:
+                    path = self._full_path(orig_path)[:-4]
+                else:
+                    path = orig_path
+                tag_name = contents[0]
+                if os.path.exists(path):
+                    files = MiscFunctions.getDirectoryFiles(path)
+                    for file in files:
+                        if MiscFunctions.FileExists(file):
+                            inode = MiscFunctions.getInode(file)
+                            MiscFunctions.storeTagInDB(file, inode, tag_name, self.db_conn)
+                else:
+                    print "Path does not exist"
+            elif len(contents) == 2:
+                file_name = contents[0]
+                tag_name = contents[1]
+                file_path = self._full_path(orig_path[:-4] + file_name)
+
+                if MiscFunctions.FileExists(file_path):
+                    inode = MiscFunctions.getInode(file_path)
+                    MiscFunctions.storeTagInDB(file_path, inode, tag_name, self.db_conn)
+                else:
+                    print "File does not exist"
 
     def _full_path(self, partial):
         if partial.startswith("/"):
@@ -212,37 +254,8 @@ class Passthrough(Operations):
         return os.read(fh, length)
 
     def write(self, path, buf, offset, fh):
-        orig_path = path
         if ntpath.basename(path) == ".tag":
-            print "buffer is %s" % buf
-            for command in buf.splitlines():
-                contents = command.split(" ")
-                print "contents is %s" % contents
-                if len(contents) == 1:
-                    if len(contents) == 1:
-                        path = self._full_path(orig_path)[:-4]
-                    else:
-                        path = orig_path
-                    tag_name = contents[0]
-                    if os.path.exists(path):
-                        files = MiscFunctions.getDirectoryFiles(path)
-                        for file in files:
-                            if MiscFunctions.FileExists(file):
-                                inode = MiscFunctions.getInode(file)
-                                MiscFunctions.storeTagInDB(file, inode, tag_name, self.db_conn)
-                    else:
-                        print "Path does not exist"
-                elif len(contents) == 2:
-                    file_name = contents[0]
-                    tag_name = contents[1]
-                    file_path = self._full_path(orig_path[:-4] + file_name)
-
-                    if MiscFunctions.FileExists(file_path):
-                        inode = MiscFunctions.getInode(file_path)
-                        MiscFunctions.storeTagInDB(file_path, inode, tag_name, self.db_conn)
-                    else:
-                        print "File does not exist"
-
+            self.add_tag(path, buf)
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
 
