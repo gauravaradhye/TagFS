@@ -26,22 +26,15 @@ class CommandHandler:
         elif command == "exit":
             sys.exit()
         elif command == "lstag":
-            if len(inp_arr) == 1:
-                # Display all files in current directory having tags
-                dir_path = os.getcwd()
-            elif len(inp_arr) == 2:
-                dir_path = inp_arr[1]
-            cursor = self.db_conn.execute("SELECT FILE_NAME, inode, tag from TAGS where FILE_NAME like ?", (dir_path+'%',))
-            for row in cursor:
-                print "File = ", row[0]
-                #print "Inode = ", row[1]
-                print "tag = ", row[2], "\n"
-
+            os.system("echo %s >> %s/.ls" % (tagdata, cwd))
+            os.system("rm %s/.ls" % cwd)
+        elif command == "getfiles":
+            os.system("echo '%s' >> %s/.gf" % (tagdata, cwd))
+            os.system("rm %s/.gf" % cwd)
         elif command == "lscmd":
             print "use lstag to see all tagged files in PWD"
             print "use tag <filename> <tagname> to tag a file"
-            print "use exit to exit the program"
-
+            print "use exit to exit the program" 
         else:
             print "Command not found, use lscmd to see list of available commands"
 

@@ -16,7 +16,14 @@ cp tag ${setupPath}/
 chmod +x ${setupPath}/tag
 
 cp tagfs ${setupPath}/
-chmod +x ${setupPath}/tagfs 
+chmod +x ${setupPath}/tagfs
+
+
+cp getfiles ${setupPath}/
+chmod +x ${setupPath}/getfiles 
+
+cp lstag ${setupPath}/
+chmod +x ${setupPath}/lstag 
 
 cp config.json ${setupPath}/TBFS/
 cp pythonInterface.py ${setupPath}/TBFS/
