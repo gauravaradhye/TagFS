@@ -158,10 +158,26 @@ class Passthrough(Operations):
                 result.add(row[0])
             result = list(result)
 
-            print "Result is:"
+            result_path = "/Users/Rahul/Desktop/results/"
+
             for x in result:
-                print x
-            FUSE(ResultsFS('/Users/Rahul/Desktop/results/', result), '/Users/Rahul/Desktop/results-mp', foreground=True)
+                print x 
+            print "Result is in", result_path
+            
+
+            for path in os.listdir(result_path):
+                try:
+                    os.unlink(os.path.join(result_path, path))
+                except:
+                    pass
+
+        # Generate hard links for the files in the results directory
+            for filepath in result:
+                partial = filepath.split('/')[-1]
+                path = os.path.join(result_path, partial)
+                os.link(filepath, path)
+
+            #FUSE(ResultsFS('/Users/Rahul/Desktop/results/', result), '/Users/Rahul/Desktop/results-mp', foreground=True)
             
 
     def add_tag(self, path, buf):
