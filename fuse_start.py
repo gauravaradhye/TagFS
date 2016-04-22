@@ -21,12 +21,15 @@ import ntpath
 import json
 import shutil
 import subprocess
+import nltk
+from collections import Counter
+from string import punctuation
 
 from results import ResultsFS
 class Database:
     def __init__(self):
         self.conn = None
-        with open('/home/aniket/bin/TBFS/config.json') as config_file:
+        with open('/usr/local/bin/TBFS/config.json') as config_file:
             self.config = json.load(config_file)
 
     def initialize(self):
@@ -103,6 +106,21 @@ class MiscFunctions:
     @classmethod
     def renameFile(cls, old_name, new_name, db_conn):
         db_conn.execute("UPDATE TAGS SET FILE_NAME = ? WHERE FILE_NAME = ?", (new_name, old_name))
+
+
+    @classmethod
+    def getNFrequentWords(cls, nltkObj, n):
+        stopwords = set(nltk.corpus.stopwords.words('english'))
+        with_stp = Counter()
+        without_stp  = Counter()
+        for word in nltkObj:
+            # update count off all words in the line that are in stopwords
+            word = word.lower()
+            if word not in stopwords:
+            # update count off all words in the line that are not in stopwords
+                without_stp.update([word])
+        # return a list with top ten most common words from each
+        return [y for y,_ in without_stp.most_common(n)]
 
 
 class Passthrough(Operations):
@@ -225,6 +243,13 @@ class Passthrough(Operations):
                 file_name = contents[0]
                 tag_name = contents[1]
                 file_path = self._full_path(orig_path[:-4] + file_name)
+                filename, file_extension = os.path.splitext(file_path)
+                print file_extension
+                if (file_extension == ".txt"):
+                    print "inside"
+                    freq_words = MiscFunctions.getNFrequentWords(nltk.corpus.inaugural.words(file_path), 3)
+                    for word in freq_words:
+                        print word
 
                 if MiscFunctions.FileExists(file_path):
                     inode = MiscFunctions.getInode(file_path)
