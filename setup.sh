@@ -7,6 +7,7 @@ fi
 pip install hachoir-metadata
 pip install hachoir-core
 pip install hachoir-parser
+sudo pip install -U nltk
 
 python createConfig.py ${setupPath}
 
