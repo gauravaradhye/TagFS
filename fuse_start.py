@@ -277,6 +277,7 @@ class Passthrough(Operations):
             return pathname
 
     def mknod(self, path, mode, dev):
+        print("Inside")
         return os.mknod(self._full_path(path), mode, dev)
 
     def rmdir(self, path):
@@ -351,7 +352,24 @@ class Passthrough(Operations):
         return os.fsync(fh)
 
     def release(self, path, fh):
-        self.parseMetadata(self, path)
+        if(os.path.splitext(path)[1][1:].lower() in ['mp3','bzip2','gzip','zip','tar','wav','midi','bmp','gif','jpeg','jpg','png','tiff','exe','wmv','mkv','mov']):
+            full_path = self._full_path(path)
+            parser = createParser(full_path)
+            metalist = metadata.extractMetadata(parser).exportPlaintext()
+            for item in metalist:
+                x = item.split(':')[0] 
+                if item.split(':')[0][2:].lower() in ["author","album","music genre"]:
+                    print(item.split(':')[1][1:])
+                    tag_name = item.split(':')[1][1:]
+                    files = MiscFunctions.getDirectoryFiles(full_path)
+                    for file in files:
+                        #print file
+                        #print full_path
+                        inode = MiscFunctions.getInode(file)
+                        file_name = os.path.basename(path)
+                        MiscFunctions.storeTagInDB(file, inode, tag_name, self.db_conn)
+                        print "Inode is %s " % inode
+            print("Database storage successful")
         return os.close(fh)
 
     def fsync(self, path, fdatasync, fh):
