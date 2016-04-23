@@ -123,9 +123,10 @@ class MiscFunctions:
             text = nltk.corpus.inaugural.words(file_path)
         elif (file_extension in [".docx", ".doc"]):
             text = str(docx2txt.process(file_path)).split()
-        freq_words = MiscFunctions.getNFrequentWords(text, 3)
-        for word in freq_words:
-            print word
+        if file_extension in [".txt", ".doc", ".docx"]:
+            freq_words = MiscFunctions.getNFrequentWords(text, 3)
+            for word in freq_words:
+                print word
 
 
 class Passthrough(Operations):
@@ -199,7 +200,7 @@ class Passthrough(Operations):
                 path = os.path.join(result_path, partial)
                 os.symlink(filepath, path)
 
-            #FUSE(ResultsFS('/Users/Rahul/Desktop/results/', result), '/Users/Rahul/Desktop/results-mp', foreground=True)
+            #FUSE(ResultsFS('/Users/gauravaradhye/Desktop/results/', result), '/Users/gauravaradhye/Desktop/results-mp', foreground=True)
             
     def parseMetadata(self, path):
         if(os.path.splitext(path)[1][1:].lower() in ['mp3','bzip2','gzip','zip','tar','wav','midi','bmp','gif','jpeg','jpg','png','tiff','exe','wmv','mkv','mov']):
