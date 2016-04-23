@@ -66,8 +66,8 @@ class MiscFunctions:
             return True
         else:
             return False
+    
     @classmethod 
-
     def storeTagRelInDB(cls, tag1, tag2, db_conn):
         params = (tag1, tag2)
         try:
@@ -76,16 +76,32 @@ class MiscFunctions:
         except sqlite3.IntegrityError:
             pass
         db_conn.commit()
+
     @classmethod
-    def storeTagInDB(cls, file_name, inode, tag_name, db_conn):
-        params = (file_name, inode, tag_name)
+    def getTagID(cls, tag_name, db_conn):
         try:
-            db_conn.execute("INSERT INTO TAGS (FILE_NAME, INODE, TAG) \
-                             VALUES (?, ?, ? )", params);
-        except sqlite3.IntegrityError:
+            db_conn.execute("INSERT INTO TAGS (NAME) VALUES (?)", [tag_name])
+        except Exception as e:
+            print e
+            pass
+        tag_id = db_conn.execute("SELECT ID FROM TAGS WHERE NAME = ?", [tag_name]).fetchone()
+        db_conn.commit()
+        return tag_id
+
+    @classmethod
+    def storeTagInDB(cls, file_name, tag_name, db_conn):
+        try:
+            tag_id = MiscFunctions.getTagID(tag_name, db_conn);
+            print tag_id
+            params = (file_name, tag_id[0])
+            db_conn.execute("INSERT INTO FILES (PATH, TAGID) \
+                             VALUES (?,?)", params);
+        except sqlite3.IntegrityError as e:
+            print e
             pass
         db_conn.commit()
-
+    
+    
     @classmethod
     def getInode(cls, file_path):
         stat = os.stat(file_path);
@@ -94,12 +110,12 @@ class MiscFunctions:
     @classmethod
     def removeFromDB(cls, file_name, db_conn):
         print(file_name)
-        db_conn.execute("DELETE FROM TAGS WHERE FILE_NAME='%s'" % file_name)
+        db_conn.execute("DELETE FROM FILES WHERE PATH='%s'" % file_name)
         db_conn.commit()
 
     @classmethod
     def renameFile(cls, old_name, new_name, db_conn):
-        db_conn.execute("UPDATE TAGS SET FILE_NAME = ? WHERE FILE_NAME = ?", (new_name, old_name))
+        db_conn.execute("UPDATE FILES SET PATH = ? WHERE PATH = ?", (new_name, old_name))
 
 
     @classmethod
@@ -133,9 +149,47 @@ class Passthrough(Operations):
     def __init__(self, root):
         self.db_conn = Database().initialize()
         self.root = root
-    
+
     # Helpers
     # =======
+    def add_tag(self, path, buf):
+        orig_path = path
+        print "buffer is %s" % buf
+        for command in buf.splitlines():
+            contents = command.split(" ")
+            print "contents is %s" % contents
+            if len(contents) == 1:
+                if len(contents) == 1:
+                    path = self._full_path(orig_path)[:-4]
+                else:
+                    path = orig_path
+
+                tag_name = contents[0]
+                print path, tag_name
+                if os.path.exists(path):
+                    files = MiscFunctions.getDirectoryFiles(path)
+                    for filename in files:
+                        if MiscFunctions.FileExists(filename):
+                            MiscFunctions.storeTagInDB(filename, tag_name, self.db_conn)
+                else:
+                    print "Path does not exist"
+            elif len(contents) == 2:
+                file_name = contents[0]
+                tag_name = contents[1]
+                file_path = self._full_path(orig_path[:-4] + file_name)
+                filename, file_extension = os.path.splitext(file_path)
+                print file_extension
+                if (file_extension == ".txt"):
+                    print "inside"
+                    freq_words = MiscFunctions.getNFrequentWords(nltk.corpus.inaugural.words(file_path), 3)
+                    for word in freq_words:
+                        print word
+
+                if MiscFunctions.FileExists(file_path):
+                    
+                    MiscFunctions.storeTagInDB(file_path, tag_name, self.db_conn)
+                else:
+                    print "File does not exist"
 
     def ls_tags(self, path, buf):
         orig_path = path
@@ -149,18 +203,19 @@ class Passthrough(Operations):
             else:
                 path = self._full_path(contents[0])
             #print path
-            cursor = self.db_conn.execute("SELECT FILE_NAME, inode, tag from TAGS where FILE_NAME like ?", (path+'%',))
+            cursor = self.db_conn.execute("SELECT f.PATH, t.NAME FROM FILES f, TAGS t WHERE f.TAGID = t.ID AND f.PATH like ?", [path+'%'])
             result = dict()
             for row in cursor:
-                if (row[0],row[1]) not in result :
-                    result[(row[0],row[1])] = []
-                result[(row[0],row[1])] += [row[2]]
+                if row[0] not in result:
+                    result[row[0]] = []
+                result[row[0]] += [row[1]]
             
+
+
             print result
-            for items in result:
-                print items[0]
-                print items[1]
-                print ",".join(result[items])
+            for item in result:
+                print item
+                print ",".join(result[item])
 
     def get_files(self, path, buf):
         orig_path = path
@@ -173,8 +228,8 @@ class Passthrough(Operations):
                 path = self._full_path(orig_path)[:index]
             else:
                 path = self._full_path(contents[0])
-            #print path
-            query = "SELECT * FROM TAGS WHERE TAG IN (%s)" % ','.join('?'*len(contents))
+            print "Path is", path
+            query = "SELECT f.PATH FROM FILES f, TAGS t WHERE f.TAGID = t.ID AND t.NAME IN (%s)" % ','.join('?'*len(contents))
             cursor = self.db_conn.execute(query, contents)
             result = set()
             for row in cursor:
@@ -190,6 +245,7 @@ class Passthrough(Operations):
 
             for path in os.listdir(result_path):
                 try:
+                    print "REasdasda", os.path.join(result_path, path)
                     os.unlink(os.path.join(result_path, path))
                 except:
                     pass
@@ -216,10 +272,10 @@ class Passthrough(Operations):
                     for file in files:
                         #print file
                         #print full_path
-                        inode = MiscFunctions.getInode(file)
+                        
                         file_name = os.path.basename(path)
-                        MiscFunctions.storeTagInDB(file, inode, tag_name, self.db_conn)
-                        print "Inode is %s " % inode
+                        MiscFunctions.storeTagInDB(file, tag_name, self.db_conn)
+                        
             print("Database storage successful")
         else:
             return
@@ -245,40 +301,6 @@ class Passthrough(Operations):
                     result = set()
                     for row in cursor:
                         print row
-            
-
-
-    def add_tag(self, path, buf):
-        orig_path = path
-        print "buffer is %s" % buf
-        for command in buf.splitlines():
-            contents = command.split(" ")
-            print "contents is %s" % contents
-            if len(contents) == 1:
-                if len(contents) == 1:
-                    path = self._full_path(orig_path)[:-4]
-                else:
-                    path = orig_path
-                tag_name = contents[0]
-                if os.path.exists(path):
-                    files = MiscFunctions.getDirectoryFiles(path)
-                    for filename in files:
-                        if MiscFunctions.FileExists(filename):
-                            inode = MiscFunctions.getInode(filename)
-                            MiscFunctions.storeTagInDB(filename, inode, tag_name, self.db_conn)
-                else:
-                    print "Path does not exist"
-            elif len(contents) == 2:
-                file_name = contents[0]
-                tag_name = contents[1]
-                file_path = self._full_path(orig_path[:-4] + file_name)
-                MiscFunctions.handleTextFiles(file_path)
-
-                if MiscFunctions.FileExists(file_path):
-                    inode = MiscFunctions.getInode(file_path)
-                    MiscFunctions.storeTagInDB(file_path, inode, tag_name, self.db_conn)
-                else:
-                    print "File does not exist"
 
     def _full_path(self, partial):
         if partial.startswith("/"):
@@ -346,9 +368,12 @@ class Passthrough(Operations):
         #print path
         full_path = self._full_path(path)
         file_name = os.path.basename(path)
+        print full_path, "&",file_name
         files = MiscFunctions.getDirectoryFiles(full_path)
         for file in files:
-            MiscFunctions.removeFromDB(file, self.db_conn)
+            print file
+            if not (ntpath.basename(file) in ['.tag', '.ls', '.gf', '.graph']):
+                MiscFunctions.removeFromDB(file, self.db_conn)
         return os.unlink(self._full_path(path))
 
     def symlink(self, name, target):
@@ -415,10 +440,10 @@ class Passthrough(Operations):
                     for file in files:
                         #print file
                         #print full_path
-                        inode = MiscFunctions.getInode(file)
+                        
                         file_name = os.path.basename(path)
-                        MiscFunctions.storeTagInDB(file, inode, tag_name, self.db_conn)
-                        print "Inode is %s " % inode
+                        MiscFunctions.storeTagInDB(file, tag_name, self.db_conn)
+                        
             print("Database storage successful")
         return os.close(fh)
 

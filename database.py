@@ -17,13 +17,30 @@ class Database:
         return self.conn
 
     def createTables(self):
-        self.conn.execute('''CREATE TABLE IF NOT EXISTS TAGS
-                        ( FILE_NAME           TEXT    NOT NULL,
-                          INODE            INT     NOT NULL,
-                          TAG            TEXT     NOT NULL,
-                          primary key (FILE_NAME, INODE, TAG));''')
+
+        self.conn.execute('''CREATE TABLE IF NOT EXISTS FILES
+                            (   
+                                PATH TEXT,
+                                TAGID INTEGER,
+                                FOREIGN KEY(TAGID) REFERENCES TAGS(ID),
+                                PRIMARY KEY(TAGID, PATH)
+
+                            );''')
+
+        self.conn.execute('''CREATE TABLE IF NOT EXISTS TAGS 
+                            (
+                                ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                                NAME TEXT UNIQUE
+
+                            );''');
 
         self.conn.execute('''CREATE TABLE IF NOT EXISTS TAGREL
-                        ( SRC_TAG                 TEXT      NOT NULL,
-                          DEST_TAG                 TEXT      NOT NULL,
-                          primary key (SRC_TAG, DEST_TAG));''')
+                            (   
+                                SRC_TAGID INTEGER,
+                                DEST_TAGID INTEGER,
+                                FOREIGN KEY(SRC_TAGID) REFERENCES TAGS(ID),
+                                FOREIGN KEY(DEST_TAGID) REFERENCES TAGS(ID),
+                                PRIMARY KEY(SRC_TAGID, DEST_TAGID)
+
+                            );''')
+        
