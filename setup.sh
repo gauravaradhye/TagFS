@@ -26,7 +26,11 @@ chmod +x ${setupPath}/getfiles
 cp lstag ${setupPath}/
 chmod +x ${setupPath}/lstag 
 
+cp tagrel ${setupPath}/
+chmod +x ${setupPath}/tagrel
+
 cp config.json ${setupPath}/TBFS/
 cp pythonInterface.py ${setupPath}/TBFS/
 cp fuse_start.py ${setupPath}/TBFS/
 cp results.py ${setupPath}/TBFS/
+cp database.py ${setupPath}/TBFS/

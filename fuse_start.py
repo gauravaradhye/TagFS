@@ -18,7 +18,7 @@ from stat import *
 from os.path import abspath, join
 import thread
 import ntpath
-import json
+
 import shutil
 import subprocess
 import nltk
@@ -26,28 +26,8 @@ from collections import Counter
 from string import punctuation
 
 from results import ResultsFS
-class Database:
-    def __init__(self):
-        self.conn = None
-        with open('/usr/local/bin/TBFS/config.json') as config_file:
-            self.config = json.load(config_file)
 
-    def initialize(self):
-        print self.config
-        with sqlite3.connect(self.config["path"]+"/TBFS/tags.db") as self.conn:
-            cursor = self.conn.cursor()
-            cursor.execute('SELECT SQLITE_VERSION()')
-            data = cursor.fetchone()
-            print 'SQLite version: ', data
-            self.createTables()
-        return self.conn
-
-    def createTables(self):
-        self.conn.execute('''CREATE TABLE IF NOT EXISTS TAGS
-                        ( FILE_NAME           TEXT    NOT NULL,
-                          INODE            INT     NOT NULL,
-                          TAG            TEXT     NOT NULL,
-                          primary key (FILE_NAME, INODE, TAG));''')
+from database import Database
 
 class MiscFunctions:
 
@@ -81,7 +61,16 @@ class MiscFunctions:
             return True
         else:
             return False
+    @classmethod 
 
+    def storeTagRelInDB(cls, tag1, tag2, db_conn):
+        params = (tag1, tag2)
+        try:
+            db_conn.execute("INSERT INTO TAGREL (SRC_TAG, DEST_TAG) \
+                             VALUES (?, ?, ? )", params);
+        except sqlite3.IntegrityError:
+            pass
+        db_conn.commit()
     @classmethod
     def storeTagInDB(cls, file_name, inode, tag_name, db_conn):
         params = (file_name, inode, tag_name)
@@ -157,10 +146,9 @@ class Passthrough(Operations):
                 print ",".join(result[items])
 
     def get_files(self, path, buf):
-
-         orig_path = path
-         print "buffer is %s" % buf
-         for command in buf.splitlines():
+        orig_path = path
+        print "buffer is %s" % buf
+        for command in buf.splitlines():
             contents = command.split(" ")
             print "contents is %s" % contents  
             if contents[0].strip() == "":
@@ -169,7 +157,7 @@ class Passthrough(Operations):
             else:
                 path = self._full_path(contents[0])
             #print path
-            query = "SELECT * FROM TAGS WHERE tag IN (%s)" % ','.join('?'*len(contents))
+            query = "SELECT * FROM TAGS WHERE TAG IN (%s)" % ','.join('?'*len(contents))
             cursor = self.db_conn.execute(query, contents)
             result = set()
             for row in cursor:
@@ -193,7 +181,7 @@ class Passthrough(Operations):
             for filepath in result:
                 partial = filepath.split('/')[-1]
                 path = os.path.join(result_path, partial)
-                os.link(filepath, path)
+                os.symlink(filepath, path)
 
             #FUSE(ResultsFS('/Users/Rahul/Desktop/results/', result), '/Users/Rahul/Desktop/results-mp', foreground=True)
             
@@ -219,6 +207,30 @@ class Passthrough(Operations):
         else:
             return
 
+    def rel_tags(self, path, buf):
+        orig_path = path
+        print path
+        print "buffer is %s" % buf
+        for command in buf.splitlines():
+            contents = command.strip().split(" ")
+            print "contents is %s" % contents
+
+            if len(contents)==1:
+                print "Please add two tags"
+            else:
+                tag1 = contents[0] 
+                tag2 = contents[1]
+                if(tag1 is "" or tag2 is ""):
+                    print ("One of the tags is empty")
+                else:
+                    query = "SELECT DISTINCT * FROM TAGS WHERE TAG = ?"
+                    cursor = self.db_conn.execute(query, [tag1])
+                    result = set()
+                    for row in cursor:
+                        print row
+            
+
+
     def add_tag(self, path, buf):
         orig_path = path
         print "buffer is %s" % buf
@@ -233,10 +245,10 @@ class Passthrough(Operations):
                 tag_name = contents[0]
                 if os.path.exists(path):
                     files = MiscFunctions.getDirectoryFiles(path)
-                    for file in files:
-                        if MiscFunctions.FileExists(file):
-                            inode = MiscFunctions.getInode(file)
-                            MiscFunctions.storeTagInDB(file, inode, tag_name, self.db_conn)
+                    for filename in files:
+                        if MiscFunctions.FileExists(filename):
+                            inode = MiscFunctions.getInode(filename)
+                            MiscFunctions.storeTagInDB(filename, inode, tag_name, self.db_conn)
                 else:
                     print "Path does not exist"
             elif len(contents) == 2:
@@ -365,6 +377,8 @@ class Passthrough(Operations):
             self.ls_tags(path, buf)
         elif ntpath.basename(path) == ".gf":
             self.get_files(path, buf)
+        elif ntpath.basename(path) == ".graph":
+            self.rel_tags(path, buf)
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
 

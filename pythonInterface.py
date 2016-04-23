@@ -20,6 +20,7 @@ class CommandHandler:
     def process(self, cwd, *inp_arr):
         command = inp_arr[0][0]
         tagdata = " ".join(inp_arr[0][1:])
+        print command, tagdata
         if command == "tag":
             os.system("echo %s >> %s/.tag" % (tagdata, cwd))
             os.system("rm %s/.tag" % cwd)
@@ -29,8 +30,11 @@ class CommandHandler:
             os.system("echo %s >> %s/.ls" % (tagdata, cwd))
             os.system("rm %s/.ls" % cwd)
         elif command == "getfiles":
-            os.system("echo '%s' >> %s/.gf" % (tagdata, cwd))
+            os.system("echo %s >> %s/.gf" % (tagdata, cwd))
             os.system("rm %s/.gf" % cwd)
+        elif command == "tagrel":
+            os.system("echo %s >> %s/.graph" % (tagdata, cwd))
+            os.system("rm %s/.graph" % cwd)
         elif command == "lscmd":
             print "use lstag to see all tagged files in PWD"
             print "use tag <filename> <tagname> to tag a file"
