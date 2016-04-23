@@ -24,12 +24,17 @@ import subprocess
 import nltk
 from collections import Counter
 from string import punctuation
+import docx2txt
 
 from results import ResultsFS
 
 from database import Database
 
 class MiscFunctions:
+
+    def __init__(self):
+        with open('config.json') as config_file:
+            self.config = json.load(config_file)
 
     @classmethod
     def getDirectoryFiles(cls, path):
@@ -111,6 +116,17 @@ class MiscFunctions:
         # return a list with top ten most common words from each
         return [y for y,_ in without_stp.most_common(n)]
 
+    @classmethod
+    def handleTextFiles(cls, file_path):
+        filename, file_extension = os.path.splitext(file_path)
+        if (file_extension == ".txt"):
+            text = nltk.corpus.inaugural.words(file_path)
+        elif (file_extension in [".docx", ".doc"]):
+            text = str(docx2txt.process(file_path)).split()
+        freq_words = MiscFunctions.getNFrequentWords(text, 3)
+        for word in freq_words:
+            print word
+
 
 class Passthrough(Operations):
     def __init__(self, root):
@@ -164,7 +180,7 @@ class Passthrough(Operations):
                 result.add(row[0])
             result = list(result)
 
-            result_path = "/Users/Rahul/Desktop/results/"
+            result_path = "/Users/gauravaradhye/Desktop/results/"
 
             for x in result:
                 print x 
@@ -255,13 +271,7 @@ class Passthrough(Operations):
                 file_name = contents[0]
                 tag_name = contents[1]
                 file_path = self._full_path(orig_path[:-4] + file_name)
-                filename, file_extension = os.path.splitext(file_path)
-                print file_extension
-                if (file_extension == ".txt"):
-                    print "inside"
-                    freq_words = MiscFunctions.getNFrequentWords(nltk.corpus.inaugural.words(file_path), 3)
-                    for word in freq_words:
-                        print word
+                MiscFunctions.handleTextFiles(file_path)
 
                 if MiscFunctions.FileExists(file_path):
                     inode = MiscFunctions.getInode(file_path)
