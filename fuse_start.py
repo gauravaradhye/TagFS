@@ -205,10 +205,7 @@ class MiscFunctions:
             text = nltk.corpus.inaugural.words(file_path)
         elif (file_extension in [".docx", ".doc"]):
             text = str(docx2txt.process(file_path)).split()
-        if file_extension in [".txt", ".doc", ".docx"]:
-            freq_words = MiscFunctions.getNFrequentWords(text, 3)
-            for word in freq_words:
-                print word
+        return MiscFunctions.getNFrequentWords(text, 3)
 
 
 class Passthrough(Operations):
@@ -372,10 +369,9 @@ class Passthrough(Operations):
             print orig_path
             self.fill_results(orig_path, contents)
 
-            #FUSE(ResultsFS('/Users/Rahul/Desktop/results/', result), '/Users/Rahul/Desktop/results-mp', foreground=True)
-
     def parse_metadata(self, full_path):
-        if(os.path.splitext(full_path)[1][1:].lower() in ['mp3','bzip2','gzip','zip','tar','wav','midi','bmp','gif','jpeg','jpg','png','tiff','exe','wmv','mkv','mov']):
+        file_ext = os.path.splitext(full_path)[1][1:].lower()
+        if(file_ext in ['mp3','bzip2','gzip','zip','tar','wav','midi','bmp','gif','jpeg','jpg','png','tiff','exe','wmv','mkv','mov']):
             # full_path = self._full_path(orig_path)
             # print(full_path)
             parser = createParser(full_path)
@@ -389,9 +385,14 @@ class Passthrough(Operations):
                     for names in tag_name:
                         # inode = os.stat(full_path)[ST_INO
                         tagname = names.strip()
-                        MiscFunctions.storeTagInDB(full_path, tagname, self.db_conn)    
+                        MiscFunctions.storeTagInDB(full_path, tagname, self.db_conn)
 
             print("Database storage successful")
+        elif file_ext in ["docx", "doc", "txt"]:
+            tags = MiscFunctions.handleTextFiles(full_path)
+            for tagname in tags:
+                print "txt file tag: %s" % tagname
+                MiscFunctions.storeTagInDB(full_path, tagname, self.db_conn)
 
     def remove_tags(self, path, buf):
         orig_path = path
