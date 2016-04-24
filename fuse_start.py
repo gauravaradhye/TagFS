@@ -136,15 +136,16 @@ class MiscFunctions:
     @classmethod
     def storeTagInDB(cls, file_name, tag_name, db_conn):
         tag_id = MiscFunctions.getTagID(tag_name, db_conn)
+        if(tag_id==-1):
+            db_conn.execute("INSERT INTO TAGS (NAME) VALUES (?)", [tag_name])
+        tag_id = MiscFunctions.getTagID(tag_name, db_conn)
+        params = (file_name, tag_id)
         try:
-            if(tag_id==-1):
-                db_conn.execute("INSERT INTO TAGS (NAME) VALUES (?)", [tag_name])
-            tag_id = MiscFunctions.getTagID(tag_name, db_conn)
-            params = (file_name, tag_id)
+
             db_conn.execute("INSERT INTO FILES (PATH, TAGID) VALUES (?,?)", params);
             db_conn.commit()
         except sqlite3.IntegrityError:
-            pass
+            print "asdasd"
         
     @classmethod
     def removeTagInDB(cls, file_name, tag_name, db_conn):
@@ -543,7 +544,7 @@ class Passthrough(Operations):
         return os.rmdir(full_path)
 
     def mkdir(self, path, mode):
-        return os.mkdir(self._full_path(path), mode)
+            return os.mkdir(self._full_path(path), mode)
 
     def statfs(self, path):
         full_path = self._full_path(path)

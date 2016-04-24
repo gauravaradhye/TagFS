@@ -1,5 +1,5 @@
 if [ $# -eq 0 ]; then
-    setupPath="/home/aniket/bin"
+    setupPath="/usr/local/bin"
 else
     setupPath=$1
 fi
