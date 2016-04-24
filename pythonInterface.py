@@ -31,13 +31,14 @@ class CommandHandler:
             os.system("echo %s >> %s/.gf" % (tagdata, cwd))
         elif command == "tagrel":
             os.system("echo %s >> %s/.graph" % (tagdata, cwd))
-            
         elif command == "lscmd":
             print "use lstag to see all tagged files in PWD"
             print "use tag <filename> <tagname> to tag a file"
             print "use exit to exit the program" 
         elif command == "tagr":
             os.system("echo %s >> %s/.tagr" %(tagdata, cwd))
+        elif command == "searchq":
+            os.system("echo %s >> %s/.searchq" %(tagdata, cwd))
         else:
             print "Command not found, use lscmd to see list of available commands"
 

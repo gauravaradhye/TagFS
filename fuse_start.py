@@ -311,50 +311,53 @@ class Passthrough(Operations):
             
 
 
-    def get_files(self, path, buf):
-        
-        orig_path = path
+    #Helper to fill data in results
+    def fill_results(self, path, contents):
+        if contents[0].strip() == "":
+            index = orig_path.index(".")
+            path = self._full_path(orig_path)[:index]
+        else:
+            path = self._full_path(contents[0])
+        query = "SELECT f.PATH FROM FILES f, TAGS t WHERE f.TAGID = t.ID AND t.NAME IN (%s)" % ','.join('?'*len(contents))
+        cursor = self.db_conn.execute(query, contents)
+        result = set()
+        for row in cursor:
+            result.add(row[0])
+        result = list(result)
+        result_path = "results/"
+        full_result_path = self._full_path(result_path)
+        print(os.listdir(full_result_path))
 
-        #print "buffer is %s" % buf
+        for path in os.listdir(full_result_path):
+            try:
+                os.unlink(self._full_path(result_path+path))
+            except:
+                pass
+        os.rmdir(full_result_path)
+        os.mkdir(full_result_path)
+
+    # Generate hard links for the files in the results directory
+        print(result)
+        for filepath in result:
+            self.create_links(filepath, result_path)
+            # partial = filepath.split('/')[-1]
+            # path = self._full_path(partial)
+            # os.symlink(filepath, path)
+
+    def create_links(self, filepath, result_path):
+        new_path = os.path.basename(filepath)
+        new_full_path = self._full_path(result_path+new_path)
+        print(filepath)
+        print(new_full_path)
+        os.symlink(filepath, new_full_path)
+
+    #Use getfiles tagname to list all files in results on mountpoint
+    def get_files(self, path, buf):
+        orig_path = path
         for command in buf.splitlines():
             contents = command.split(" ")
-            related_tags = [MiscFunctions.getRelatedTags(x, self.db_conn) for x in contents]
-            search_tags = set()
-            for tags in related_tags:
-                search_tags = search_tags.union(set(tags))
-            print search_tags
-             
-            if contents[0].strip() == "":
-                index = orig_path.index(".")
-                path = self._full_path(orig_path)[:index]
-            else:
-                path = self._full_path(contents[0])
-            #print "Path is", path
-            query = "SELECT f.PATH FROM FILES f, TAGS t WHERE f.TAGID = t.ID AND t.ID IN (%s)" % ','.join('?'*len(search_tags))
-            print search_tags
-            cursor = self.db_conn.execute(query, map(str, search_tags))
-            result = set()
-            for row in cursor:
-                result.add(row[0])
-            result = list(result)
-            result_path = "/Users/Rahul/Desktop/results/"
-            for x in result:
-                print x 
-            print "Result is in", result_path
-            
-
-            for path in os.listdir(result_path):
-                try:
-                    #print "REasdasda", os.path.join(result_path, path)
-                    os.unlink(os.path.join(result_path, path))
-                except:
-                    pass
-
-        # Generate hard links for the files in the results directory
-            for filepath in result:
-                partial = filepath.split('/')[-1]
-                path = os.path.join(result_path, partial)
-                os.symlink(filepath, path)
+            print orig_path
+            self.fill_results(orig_path, contents)
 
             #FUSE(ResultsFS('/Users/Rahul/Desktop/results/', result), '/Users/Rahul/Desktop/results-mp', foreground=True)
 
@@ -391,6 +394,63 @@ class Passthrough(Operations):
                 pass
             self.db_conn.commit()
             # self.db_conn.execute(query, [tag_name])
+
+    def bool_exp(self, path, buf):
+        print buf
+        result = set()
+        if(buf.find("AND")):
+            contents = buf.strip().split("AND")
+            if (len(contents)==2):
+                tag1 = contents[0].strip()
+                tag2 = contents[1].strip()
+                print(tag1 + "asdfasdf" + tag2)
+                if(tag1 is "" or tag2 is ""):
+                    print ("One of the tags is empty")
+                else:
+                    query = "SELECT F.PATH FROM FILES F, TAGS T WHERE F.TAGID = T.ID AND T.NAME = ?  \
+                        INTERSECT SELECT F1.PATH FROM FILES F1, TAGS T1 WHERE F1.TAGID = T1.ID AND T1.NAME = ?"
+                    # print(query)
+                    cursor = self.db_conn.execute(query, (tag1, tag2))
+                    for row in cursor:
+                        result.add(row[0])
+            else:
+                print "Please add only two tags"
+        if(buf.find("OR")):
+            contents = buf.strip().split("OR")
+            print(contents)
+            if (len(contents)==2):
+                tag1 = contents[0].strip()
+                tag2 = contents[1].strip()
+                print(tag1 + "asdfasdf" + tag2)
+                if(tag1 is "" or tag2 is ""):
+                    print ("One of the tags is empty")
+                else:
+                    query = "SELECT F.PATH FROM FILES F, TAGS T WHERE F.TAGID = T.ID AND T.NAME = ?  \
+                        UNION SELECT F1.PATH FROM FILES F1, TAGS T1 WHERE F1.TAGID = T1.ID AND T1.NAME = ?"
+                    # print(query)
+                    cursor = self.db_conn.execute(query, (tag1, tag2))
+                    for row in cursor:
+                        result.add(row[0])
+            else:
+                print "Please add only two tags"        
+        print(result)
+        result = list(result)
+        result_path = "results/"
+        full_result_path = self._full_path(result_path)
+        print(os.listdir(full_result_path))
+
+        for path in os.listdir(full_result_path):
+            try:
+                os.unlink(self._full_path(result_path+path))
+            except:
+                pass
+        os.rmdir(full_result_path)
+        os.mkdir(full_result_path)
+
+    # Generate hard links for the files in the results directory
+        print(result)
+        for filepath in result:
+            self.create_links(filepath, result_path)                
 
 
     def rel_tags(self, path, buf):
@@ -533,7 +593,12 @@ class Passthrough(Operations):
             self.rel_tags(path, buf)
         elif ntpath.basename(path) == ".tagr":
             self.remove_tags(path, buf)
-        if (ntpath.basename(path) in ['.tag', '.ls', '.gf', '.graph']):
+        elif ntpath.basename(path) == ".searchq":
+            if(buf.find("AND") or buf.find("OR")):
+                self.bool_exp(path, buf)
+            else:
+                print("Unsupported query. Please make necessary changes.")
+        if(ntpath.basename(path) in [".tag", ".ls", ".gf", ".graph", ".tagr", ".searchq"]):
             os.unlink(self._full_path(path))
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)

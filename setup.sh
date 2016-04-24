@@ -25,6 +25,9 @@ chmod +x ${setupPath}/tagfs
 cp tagr ${setupPath}/
 chmod +x ${setupPath}/tagr
 
+cp searchq ${setupPath}/
+chmod +x ${setupPath}/searchq
+
 cp getfiles ${setupPath}/
 chmod +x ${setupPath}/getfiles 
 
