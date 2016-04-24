@@ -7,8 +7,11 @@ fi
 pip install hachoir-metadata
 pip install hachoir-core
 pip install hachoir-parser
+pip install docx2txt
 sudo -H pip install nltk
 
+export PATH="/opt/local/bin:/opt/local/sbin:$PATH"
+# Finished adapting your PATH environment variable for use with MacPorts.
 python createConfig.py ${setupPath}
 
 mkdir -p ${setupPath}/TBFS/
@@ -34,3 +37,4 @@ cp pythonInterface.py ${setupPath}/TBFS/
 cp fuse_start.py ${setupPath}/TBFS/
 cp results.py ${setupPath}/TBFS/
 cp database.py ${setupPath}/TBFS/
+cp graph.py ${setupPath}/TBFS/

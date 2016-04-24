@@ -25,10 +25,9 @@ import nltk
 from collections import Counter
 from string import punctuation
 import docx2txt
-
 from results import ResultsFS
-
 from database import Database
+from graph import Graph
 
 class MiscFunctions:
 
@@ -42,7 +41,7 @@ class MiscFunctions:
         return list of files under path'''
 
         if S_ISREG(os.stat(path)[ST_MODE]):
-            print path + " is regular file"
+            #print path + " is regular file"
             return [path]
 
         files = []
@@ -52,10 +51,10 @@ class MiscFunctions:
             mode = os.stat(pathname)[ST_MODE]
             if S_ISDIR(mode):
                 # It's a directory, recurse into it
-                print path + " is directory file"
+             #   print path + " is directory file"
                 files += getDirectoryFiles(pathname)
             elif S_ISREG(mode):
-                print path + " is regular file"
+              #  print path + " is regular file"
                 # It's a file, call the callback function
                 files.append(pathname)
         return files
@@ -66,42 +65,96 @@ class MiscFunctions:
             return True
         else:
             return False
+
+    @classmethod 
+    def getRelatedTags(cls, tagname, db_conn):
+        tag_id = MiscFunctions.getTagID(tagname, db_conn)
+        if(tag_id == -1):
+            print "Tag not found"
+            return []
+        else:
+            graph    = Graph()
+            edgelist = db_conn.execute("SELECT * FROM TAGREL").fetchall()
+            nodes    = db_conn.execute("SELECT ID FROM TAGS").fetchall()
+            nodes    = [x[0] for x in nodes]
+            graph.initialize(edgelist, nodes)
+            tags     = graph.get_vertices(tag_id)
+        
+        return tags
+
     
     @classmethod 
     def storeTagRelInDB(cls, tag1, tag2, db_conn):
-        params = (tag1, tag2)
+        tag_id1 = MiscFunctions.getTagID(tag1, db_conn)
+        tag_id2 = MiscFunctions.getTagID(tag2, db_conn)
+        
+        print tag_id1, tag_id2
+        if(tag_id1 == -1 or tag_id2 == -1):
+            print "Either of the tag names do not exist"
+            return
+
+        graph    = Graph()
+        edgelist = db_conn.execute("SELECT * FROM TAGREL").fetchall()
+        nodes    = db_conn.execute("SELECT ID FROM TAGS").fetchall()
+        nodes    = [x[0] for x in nodes]
+        graph.initialize(edgelist, nodes)
+        if graph.checkCycle((tag_id1, tag_id2)):
+            print "Can not create relationship. Tags creates cycle"
+        else:
+            try:
+                params = (tag_id1, tag_id2)
+                db_conn.execute("INSERT INTO TAGREL (SRC_TAGID, DEST_TAGID) VALUES (?, ?)", params);
+                db_conn.commit()
+            except sqlite3.IntegrityError:
+                print "Relationship already exists"
+                
+    @classmethod
+    def removeTagRelInDB(cls, tag1, tag2, db_conn):
+
+        tag_id1 = MiscFunctions.getTagID(tag1,  db_conn)
+        tag_id2 = MiscFunctions.getTagID(tag2,  db_conn)
+        print tag_id1, tag_id2
+        if(tag_id1 == -1 or tag_id2 == -1):
+            print "Either of the tag names do not exist"
+            return
         try:
-            db_conn.execute("INSERT INTO TAGREL (SRC_TAG, DEST_TAG) \
-                             VALUES (?, ?, ? )", params);
+            params = (tag_id1, tag_id2)
+            db_conn.execute("DELETE FROM TAGREL WHERE SRC_TAGID = ? AND DEST_TAGID = ? ", params);
+            db_conn.commit()
         except sqlite3.IntegrityError:
-            pass
-        db_conn.commit()
+            print "Something Bad Happened"
+        
 
     @classmethod
     def getTagID(cls, tag_name, db_conn):
-        try:
-            db_conn.execute("INSERT INTO TAGS (NAME) VALUES (?)", [tag_name])
-        except Exception as e:
-            print e
-            pass
-        tag_id = db_conn.execute("SELECT ID FROM TAGS WHERE NAME = ?", [tag_name]).fetchone()
-        db_conn.commit()
-        return tag_id
+        ret = db_conn.execute("SELECT ID FROM TAGS WHERE NAME = ?", [tag_name]).fetchone()
+        y = -1
+        if(ret is not None):
+            y = ret[0]
+        return y
 
     @classmethod
     def storeTagInDB(cls, file_name, tag_name, db_conn):
-        try:
-            tag_id = MiscFunctions.getTagID(tag_name, db_conn);
-            print tag_id
-            params = (file_name, tag_id[0])
-            db_conn.execute("INSERT INTO FILES (PATH, TAGID) \
-                             VALUES (?,?)", params);
-        except sqlite3.IntegrityError as e:
-            print e
-            pass
+        tag_id = MiscFunctions.getTagID(tag_name, db_conn)
+        if(tag_id==-1):
+            db_conn.execute("INSERT INTO TAGS (NAME) VALUES (?)", [tag_name])
+        tag_id = MiscFunctions.getTagID(tag_name, db_conn)
+        params = (file_name, tag_id)
+        db_conn.execute("INSERT INTO FILES (PATH, TAGID) VALUES (?,?)", params);
         db_conn.commit()
-    
-    
+        
+    @classmethod
+    def removeTagInDB(cls, file_name, tag_name, db_conn):
+        tag_id = MiscFunctions.getTagID(tag_name, db_conn)
+        if(tag_id==-1):
+            print "Tag not present"
+        else:
+            params = (file_name, tag_id)
+            print params
+            x = db_conn.execute("DELETE FROM FILES WHERE PATH = ? AND TAGID = ? ", params);
+            print x.fetchall()
+            db_conn.commit()
+
     @classmethod
     def getInode(cls, file_path):
         stat = os.stat(file_path);
@@ -109,7 +162,7 @@ class MiscFunctions:
 
     @classmethod
     def removeFromDB(cls, file_name, db_conn):
-        print(file_name)
+        #print(file_name)
         db_conn.execute("DELETE FROM FILES WHERE PATH='%s'" % file_name)
         db_conn.commit()
 
@@ -154,89 +207,121 @@ class Passthrough(Operations):
     # =======
     def add_tag(self, path, buf):
         orig_path = path
-        print "buffer is %s" % buf
+        ##print "buffer is %s" % buf
         for command in buf.splitlines():
             contents = command.split(" ")
-            print "contents is %s" % contents
+            ##print "contents is %s" % contents
+            operation = contents[0]
+            contents = contents[1:]
             if len(contents) == 1:
-                if len(contents) == 1:
-                    path = self._full_path(orig_path)[:-4]
-                else:
-                    path = orig_path
-
+                path = self._full_path(orig_path)[:-4]
                 tag_name = contents[0]
-                print path, tag_name
                 if os.path.exists(path):
                     files = MiscFunctions.getDirectoryFiles(path)
                     for filename in files:
-                        if MiscFunctions.FileExists(filename):
-                            MiscFunctions.storeTagInDB(filename, tag_name, self.db_conn)
+                        if(operation == 'add'):
+                            if MiscFunctions.FileExists(filename):
+                                MiscFunctions.storeTagInDB(filename, tag_name, self.db_conn)
+                        elif(operation == 'remove'):
+                            if MiscFunctions.FileExists(filename):
+                                MiscFunctions.removeeTagInDB(filename, tag_name, self.db_conn)
+                        else:
+                            print "Wrong operation - tag [add|remove] filename tagname"
                 else:
                     print "Path does not exist"
             elif len(contents) == 2:
                 file_name = contents[0]
                 tag_name = contents[1]
                 file_path = self._full_path(orig_path[:-4] + file_name)
-                filename, file_extension = os.path.splitext(file_path)
-                print file_extension
-                if (file_extension == ".txt"):
-                    print "inside"
-                    freq_words = MiscFunctions.getNFrequentWords(nltk.corpus.inaugural.words(file_path), 3)
-                    for word in freq_words:
-                        print word
-
-                if MiscFunctions.FileExists(file_path):
-                    
-                    MiscFunctions.storeTagInDB(file_path, tag_name, self.db_conn)
+                if(operation == 'add'):
+                    filename, file_extension = os.path.splitext(file_path)
+                    print file_extension
+                    if (file_extension == ".txt"):
+                        print "inside"
+                        freq_words = MiscFunctions.getNFrequentWords(nltk.corpus.inaugural.words(file_path), 3)
+                        for word in freq_words:
+                            print word
+                    if MiscFunctions.FileExists(file_path):
+                        MiscFunctions.storeTagInDB(file_path, tag_name, self.db_conn)
+                    else:
+                        print "File does not exist"
                 else:
-                    print "File does not exist"
-
-    def ls_tags(self, path, buf):
-        orig_path = path
-        print "buffer is %s" % buf
-        for command in buf.splitlines():
-            contents = command.split(" ")
-            print "contents is %s" % contents
-            if contents[0].strip() == "":
-                index = orig_path.index(".")
-                path = self._full_path(orig_path)[:index]
-            else:
-                path = self._full_path(contents[0])
-            #print path
-            cursor = self.db_conn.execute("SELECT f.PATH, t.NAME FROM FILES f, TAGS t WHERE f.TAGID = t.ID AND f.PATH like ?", [path+'%'])
-            result = dict()
-            for row in cursor:
-                if row[0] not in result:
-                    result[row[0]] = []
-                result[row[0]] += [row[1]]
+                    if MiscFunctions.FileExists(file_path):
+                        MiscFunctions.removeTagInDB(file_path, tag_name, self.db_conn)
+                    else:
+                        print "File does not exist"
             
 
 
-            print result
-            for item in result:
-                print item
-                print ",".join(result[item])
-
-    def get_files(self, path, buf):
+    def ls_tags(self, path, buf):
         orig_path = path
-        print "buffer is %s" % buf
         for command in buf.splitlines():
             contents = command.split(" ")
-            print "contents is %s" % contents  
+            print "contents is %s" % contents
+            if(contents[0]=='-f' or contents[0] == ''):
+
+                contents = contents[1:]
+                if contents == []:
+                    path = ''
+                elif contents[0].strip() == "":
+                    index = orig_path.index(".")
+                    path = self._full_path(orig_path)[:index]
+                else:
+                    path = self._full_path(contents[0])
+                cursor = self.db_conn.execute("SELECT f.PATH, t.NAME FROM FILES f, TAGS t WHERE f.TAGID = t.ID AND f.PATH like ?", [path+'%'])
+                result = dict()
+
+                for row in cursor:
+                    if row[0] not in result:
+                        result[row[0]] = []
+                    result[row[0]] += [row[1]]
+                if(len(result) == 0):
+                    print "No results found."
+                for item in result:
+                    print item
+                    print ",".join(result[item])
+                    print "--------------------------------------------------"
+                print "\n\n===============================================================================================\n"
+            elif(contents[0]=='-t'):
+                contents = contents[1:]
+                related_tagids = MiscFunctions.getRelatedTags(contents[0], self.db_conn)
+                query = "SELECT NAME FROM TAGS WHERE ID IN (%s) AND NAME != ?" % ','.join('?'*len(related_tagids))
+                cursor = self.db_conn.execute(query, related_tagids+[contents[0]])
+                related_tags = [x[0] for x in cursor.fetchall()]
+                
+                print "Tag:", contents[0]
+                print "Related to:"
+                print ",".join(related_tags)
+                print "\n\n===============================================================================================\n"
+            
+    def get_files(self, path, buf):
+        
+        orig_path = path
+
+        #print "buffer is %s" % buf
+        for command in buf.splitlines():
+            contents = command.split(" ")
+            related_tags = [MiscFunctions.getRelatedTags(x, self.db_conn) for x in contents]
+            search_tags = set()
+            for tags in related_tags:
+                search_tags = search_tags.union(set(tags))
+            print search_tags
+             
             if contents[0].strip() == "":
                 index = orig_path.index(".")
                 path = self._full_path(orig_path)[:index]
             else:
                 path = self._full_path(contents[0])
-            print "Path is", path
-            query = "SELECT f.PATH FROM FILES f, TAGS t WHERE f.TAGID = t.ID AND t.NAME IN (%s)" % ','.join('?'*len(contents))
-            cursor = self.db_conn.execute(query, contents)
+            #print "Path is", path
+            query = "SELECT f.PATH FROM FILES f, TAGS t WHERE f.TAGID = t.ID AND t.ID IN (%s)" % ','.join('?'*len(search_tags))
+            print search_tags
+            cursor = self.db_conn.execute(query, map(str, search_tags))
             result = set()
             for row in cursor:
                 result.add(row[0])
             result = list(result)
 
-            result_path = "/Users/gauravaradhye/Desktop/results/"
+            result_path = "/Users/Rahul/Desktop/results/"
 
             for x in result:
                 print x 
@@ -245,7 +330,7 @@ class Passthrough(Operations):
 
             for path in os.listdir(result_path):
                 try:
-                    print "REasdasda", os.path.join(result_path, path)
+                    #print "REasdasda", os.path.join(result_path, path)
                     os.unlink(os.path.join(result_path, path))
                 except:
                     pass
@@ -283,24 +368,27 @@ class Passthrough(Operations):
     def rel_tags(self, path, buf):
         orig_path = path
         print path
-        print "buffer is %s" % buf
+        #print "buffer is %s" % buf
         for command in buf.splitlines():
             contents = command.strip().split(" ")
-            print "contents is %s" % contents
-
+            #print "contents is %s" % contents
+            operation = contents[0]
+            contents = contents[1:]
             if len(contents)==1:
                 print "Please add two tags"
             else:
-                tag1 = contents[0] 
-                tag2 = contents[1]
+                tag1 = contents[0].strip()
+                tag2 = contents[1].strip()
                 if(tag1 is "" or tag2 is ""):
-                    print ("One of the tags is empty")
+                    print("One of the tags is empty")
                 else:
-                    query = "SELECT DISTINCT * FROM TAGS WHERE TAG = ?"
-                    cursor = self.db_conn.execute(query, [tag1])
-                    result = set()
-                    for row in cursor:
-                        print row
+                    if(operation == "add"):
+                        MiscFunctions.storeTagRelInDB(tag1, tag2, self.db_conn)
+                    elif(operation == "remove"):
+                        MiscFunctions.removeTagRelInDB(tag1, tag2, self.db_conn)
+                    else:
+                        print "Wrong operation - tagrel [add|remove] tag1 tag2 "
+
 
     def _full_path(self, partial):
         if partial.startswith("/"):
@@ -368,7 +456,7 @@ class Passthrough(Operations):
         #print path
         full_path = self._full_path(path)
         file_name = os.path.basename(path)
-        print full_path, "&",file_name
+        #print full_path, "&",file_name
         files = MiscFunctions.getDirectoryFiles(full_path)
         for file in files:
             print file
@@ -415,6 +503,8 @@ class Passthrough(Operations):
             self.get_files(path, buf)
         elif ntpath.basename(path) == ".graph":
             self.rel_tags(path, buf)
+        if (ntpath.basename(path) in ['.tag', '.ls', '.gf', '.graph']):
+            os.unlink(self._full_path(path))
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
 
@@ -434,7 +524,7 @@ class Passthrough(Operations):
             for item in metalist:
                 x = item.split(':')[0] 
                 if item.split(':')[0][2:].lower() in ["author","album","music genre"]:
-                    print(item.split(':')[1][1:])
+                    #print(item.split(':')[1][1:])
                     tag_name = item.split(':')[1][1:]
                     files = MiscFunctions.getDirectoryFiles(full_path)
                     for file in files:

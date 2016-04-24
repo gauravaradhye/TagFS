@@ -23,18 +23,15 @@ class CommandHandler:
         print command, tagdata
         if command == "tag":
             os.system("echo %s >> %s/.tag" % (tagdata, cwd))
-            os.system("rm %s/.tag" % cwd)
         elif command == "exit":
             sys.exit()
         elif command == "lstag":
             os.system("echo %s >> %s/.ls" % (tagdata, cwd))
-            os.system("rm %s/.ls" % cwd)
         elif command == "getfiles":
             os.system("echo %s >> %s/.gf" % (tagdata, cwd))
-            os.system("rm %s/.gf" % cwd)
         elif command == "tagrel":
             os.system("echo %s >> %s/.graph" % (tagdata, cwd))
-            os.system("rm %s/.graph" % cwd)
+            
         elif command == "lscmd":
             print "use lstag to see all tagged files in PWD"
             print "use tag <filename> <tagname> to tag a file"
