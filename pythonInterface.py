@@ -44,7 +44,7 @@ class CommandHandler:
 
 
 def main(cwd, *args):
-    with open('/usr/local/bin/TBFS/config.json') as config_file:  
+    with open('/home/aniket/bin/TBFS/config.json') as config_file:  
         config = json.load(config_file)
     db_conn = sqlite3.connect(config["path"]+"/TBFS/tags.db");
     chandler = CommandHandler(db_conn)
