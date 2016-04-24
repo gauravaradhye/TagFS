@@ -28,6 +28,9 @@ import docx2txt
 from results import ResultsFS
 from database import Database
 from graph import Graph
+import string
+import enchant
+from nltk.stem.snowball import SnowballStemmer
 
 class MiscFunctions:
 
@@ -144,8 +147,8 @@ class MiscFunctions:
 
             db_conn.execute("INSERT INTO FILES (PATH, TAGID) VALUES (?,?)", params);
             db_conn.commit()
-        except sqlite3.IntegrityError:
-            print "asdasd"
+        except sqlite3.IntegrityError as e:
+            print e
         
     @classmethod
     def removeTagInDB(cls, file_name, tag_name, db_conn):
@@ -189,12 +192,16 @@ class MiscFunctions:
         stopwords = set(nltk.corpus.stopwords.words('english'))
         with_stp = Counter()
         without_stp  = Counter()
+        dictionary = enchant.Dict("en_US")
+        stemmer = SnowballStemmer("english")
         for word in nltkObj:
             # update count off all words in the line that are in stopwords
             word = word.lower()
             if word not in stopwords:
             # update count off all words in the line that are not in stopwords
-                without_stp.update([word])
+                if dictionary.check(word):
+                    word = stemmer.stem(word)
+                    without_stp.update([word])
         # return a list with top ten most common words from each
         return [y for y,_ in without_stp.most_common(n)]
 
@@ -204,7 +211,9 @@ class MiscFunctions:
         if (file_extension == ".txt"):
             text = nltk.corpus.inaugural.words(file_path)
         elif (file_extension in [".docx", ".doc"]):
-            text = str(docx2txt.process(file_path)).split()
+            text = docx2txt.process(file_path).split()
+            text = [word.encode("utf-8") for word in text]
+            print text
         return MiscFunctions.getNFrequentWords(text, 3)
 
 

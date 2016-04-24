@@ -7,6 +7,7 @@ fi
 pip install hachoir-metadata
 pip install hachoir-core
 pip install hachoir-parser
+pip install pyenchant
 pip install docx2txt
 sudo -H pip install nltk
 
