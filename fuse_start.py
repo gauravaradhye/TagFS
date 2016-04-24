@@ -136,12 +136,15 @@ class MiscFunctions:
     @classmethod
     def storeTagInDB(cls, file_name, tag_name, db_conn):
         tag_id = MiscFunctions.getTagID(tag_name, db_conn)
-        if(tag_id==-1):
-            db_conn.execute("INSERT INTO TAGS (NAME) VALUES (?)", [tag_name])
-        tag_id = MiscFunctions.getTagID(tag_name, db_conn)
-        params = (file_name, tag_id)
-        db_conn.execute("INSERT INTO FILES (PATH, TAGID) VALUES (?,?)", params);
-        db_conn.commit()
+        try:
+            if(tag_id==-1):
+                db_conn.execute("INSERT INTO TAGS (NAME) VALUES (?)", [tag_name])
+            tag_id = MiscFunctions.getTagID(tag_name, db_conn)
+            params = (file_name, tag_id)
+            db_conn.execute("INSERT INTO FILES (PATH, TAGID) VALUES (?,?)", params);
+            db_conn.commit()
+        except sqlite3.IntegrityError:
+            pass
         
     @classmethod
     def removeTagInDB(cls, file_name, tag_name, db_conn):
@@ -151,9 +154,12 @@ class MiscFunctions:
         else:
             params = (file_name, tag_id)
             print params
-            x = db_conn.execute("DELETE FROM FILES WHERE PATH = ? AND TAGID = ? ", params);
-            print x.fetchall()
-            db_conn.commit()
+            try:
+                x = db_conn.execute("DELETE FROM FILES WHERE PATH = ? AND TAGID = ? ", params);
+                print x.fetchall()
+                db_conn.commit()
+            except sqlite3.IntegrityError:
+                pass
 
     @classmethod
     def getInode(cls, file_path):
@@ -163,12 +169,18 @@ class MiscFunctions:
     @classmethod
     def removeFromDB(cls, file_name, db_conn):
         #print(file_name)
-        db_conn.execute("DELETE FROM FILES WHERE PATH='%s'" % file_name)
-        db_conn.commit()
+        try:
+            db_conn.execute("DELETE FROM FILES WHERE PATH='%s'" % file_name)
+            db_conn.commit()
+        except sqlite3.IntegrityError:
+            pass
 
     @classmethod
     def renameFile(cls, old_name, new_name, db_conn):
-        db_conn.execute("UPDATE FILES SET PATH = ? WHERE PATH = ?", (new_name, old_name))
+        try:
+            db_conn.execute("UPDATE FILES SET PATH = ? WHERE PATH = ?", (new_name, old_name))
+        except sqlite3.IntegrityError:
+            pass
 
 
     @classmethod
