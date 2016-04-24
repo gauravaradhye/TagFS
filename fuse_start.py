@@ -52,7 +52,7 @@ class MiscFunctions:
             if S_ISDIR(mode):
                 # It's a directory, recurse into it
              #   print path + " is directory file"
-                files += getDirectoryFiles(pathname)
+                files += cls.getDirectoryFiles(pathname)
             elif S_ISREG(mode):
               #  print path + " is regular file"
                 # It's a file, call the callback function
@@ -270,12 +270,11 @@ class Passthrough(Operations):
     # Helpers
     # =======
     def initialize(self, root):
-        for sub_path in os.listdir(root):
-            # print(sub_path)
-            full_path = self._full_path(sub_path)
-            mode = os.stat(full_path)[ST_MODE]
+        for sub_path in MiscFunctions.getDirectoryFiles(root):
+            print sub_path
+            mode = os.stat(sub_path)[ST_MODE]
             if(S_ISREG(mode)):
-                self.parse_metadata(full_path.decode('utf-8'))
+                self.parse_metadata(sub_path.decode('utf-8'))
                 
 
     def ls_tags(self, path, buf):
