@@ -534,7 +534,7 @@ class Passthrough(Operations):
         elif ntpath.basename(path) == ".tagr":
             self.remove_tags(path, buf)
         if (ntpath.basename(path) in ['.tag', '.ls', '.gf', '.graph']):
-            os.unlink(self._full_path(ath))
+            os.unlink(self._full_path(path))
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
 
