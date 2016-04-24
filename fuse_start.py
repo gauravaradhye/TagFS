@@ -22,6 +22,7 @@ import ntpath
 import shutil
 import subprocess
 import nltk
+import nltk.corpus  
 from collections import Counter
 from string import punctuation
 import docx2txt
@@ -180,9 +181,18 @@ class MiscFunctions:
             pass
 
     @classmethod
+    def update_path_rename(cls, old_file_name, new_file_name, db_conn):
+        try:
+            db_conn.execute("UPDATE FILES SET PATH = ? WHERE PATH = ?", (new_file_name, old_file_name))
+            db_conn.commit()
+        except sqlite3.IntegrityError:
+            pass
+
+    @classmethod
     def renameFile(cls, old_name, new_name, db_conn):
         try:
             db_conn.execute("UPDATE FILES SET PATH = ? WHERE PATH = ?", (new_name, old_name))
+            db_conn.commit()
         except sqlite3.IntegrityError:
             pass
 
@@ -327,7 +337,6 @@ class Passthrough(Operations):
                 print ",".join(related_tags)
                 print "\n\n===============================================================================================\n"
             
-
 
     #Helper to fill data in results
     def fill_results(self, path, contents):
@@ -580,7 +589,22 @@ class Passthrough(Operations):
     def rename(self, old, new):
         full_old_path = self._full_path(old)
         full_new_path = self._full_path(new)
-        MiscFunctions.renameFile(full_old_path, full_new_path, self.db_conn)
+        mode = os.stat(full_old_path)[ST_MODE]
+        if S_ISDIR(mode):
+            print "IN here"
+            for sub_path in MiscFunctions.getDirectoryFiles(full_old_path):
+                print sub_path
+                new_path = os.path.join(self._full_path(new)+'/'+os.path.basename(sub_path))
+                MiscFunctions.update_path_rename(sub_path, new_path, self.db_conn)
+
+        elif S_ISREG(mode):
+            print "In here"
+            MiscFunctions.renameFile(full_old_path, full_new_path, self.db_conn)
+        # full_old_path = self._full_path(old)
+        # print full_old_path
+        # full_new_path = self._full_path(new)
+        # print full_new_path
+        # MiscFunctions.renameFile(full_old_path, full_new_path, self.db_conn)
         return os.rename(self._full_path(old), self._full_path(new))
 
     def link(self, target, name):
