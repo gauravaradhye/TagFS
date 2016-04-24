@@ -17,12 +17,13 @@ class Database:
         return self.conn
 
     def createTables(self):
-
+        self.conn.execute('''PRAGMA foreign_keys = ON;''')
+        
         self.conn.execute('''CREATE TABLE IF NOT EXISTS FILES
                             (   
                                 PATH TEXT,
                                 TAGID INTEGER,
-                                FOREIGN KEY(TAGID) REFERENCES TAGS(ID),
+                                FOREIGN KEY(TAGID) REFERENCES TAGS(ID) ON DELETE CASCADE,
                                 PRIMARY KEY(TAGID, PATH)
 
                             );''')
@@ -38,8 +39,8 @@ class Database:
                             (   
                                 SRC_TAGID INTEGER,
                                 DEST_TAGID INTEGER,
-                                FOREIGN KEY(SRC_TAGID) REFERENCES TAGS(ID),
-                                FOREIGN KEY(DEST_TAGID) REFERENCES TAGS(ID),
+                                FOREIGN KEY(SRC_TAGID) REFERENCES TAGS(ID) ON DELETE CASCADE,
+                                FOREIGN KEY(DEST_TAGID) REFERENCES TAGS(ID) ON DELETE CASCADE,
                                 PRIMARY KEY(SRC_TAGID, DEST_TAGID)
 
                             );''')

@@ -283,9 +283,25 @@ class Passthrough(Operations):
                     for names in tag_name:
                         # inode = os.stat(full_path)[ST_INO
                         tagname = names.strip()
-                        MiscFunctions.storeTagInDB(full_path, tagname, self.db_conn)
+                        MiscFunctions.storeTagInDB(full_path, tagname, self.db_conn)    
 
             print("Database storage successful")
+
+    def remove_tags(self, path, buf):
+        orig_path = path
+        print "Removing Tag %s" %buf
+        for command in buf.splitlines():
+            contents = command.strip()
+            tag_name = contents
+            try:
+                query = "DELETE FROM TAGS WHERE NAME = (?)"
+                self.db_conn.execute("PRAGMA FOREIGN_KEYS = ON")
+                self.db_conn.execute(query, [tag_name]);
+            except sqlite3.IntegrityError:
+                pass
+            self.db_conn.commit()
+            # self.db_conn.execute(query, [tag_name])
+
 
     def rel_tags(self, path, buf):
         orig_path = path
@@ -422,6 +438,9 @@ class Passthrough(Operations):
             self.get_files(path, buf)
         elif ntpath.basename(path) == ".graph":
             self.rel_tags(path, buf)
+        elif ntpath.basename(path) == ".tagr":
+            self.remove_tags(path, buf)
+            os.unlink(self._full_path(path))
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
 

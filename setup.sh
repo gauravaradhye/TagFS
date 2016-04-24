@@ -19,6 +19,8 @@ chmod +x ${setupPath}/tag
 cp tagfs ${setupPath}/
 chmod +x ${setupPath}/tagfs
 
+cp tagr ${setupPath}/
+chmod +x ${setupPath}/tagr
 
 cp getfiles ${setupPath}/
 chmod +x ${setupPath}/getfiles 
