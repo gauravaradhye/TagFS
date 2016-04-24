@@ -3,7 +3,7 @@ import json
 class Database:
     def __init__(self):
         self.conn = None
-        with open('/usr/local/bin/TBFS/config.json') as config_file:
+        with open('/home/aniket/bin/TBFS/config.json') as config_file:
             self.config = json.load(config_file)
 
     def initialize(self):
@@ -17,12 +17,13 @@ class Database:
         return self.conn
 
     def createTables(self):
-
+        self.conn.execute('''PRAGMA foreign_keys = ON;''')
+        
         self.conn.execute('''CREATE TABLE IF NOT EXISTS FILES
                             (   
                                 PATH TEXT,
                                 TAGID INTEGER,
-                                FOREIGN KEY(TAGID) REFERENCES TAGS(ID),
+                                FOREIGN KEY(TAGID) REFERENCES TAGS(ID) ON DELETE CASCADE,
                                 PRIMARY KEY(TAGID, PATH)
 
                             );''')
@@ -38,8 +39,8 @@ class Database:
                             (   
                                 SRC_TAGID INTEGER,
                                 DEST_TAGID INTEGER,
-                                FOREIGN KEY(SRC_TAGID) REFERENCES TAGS(ID),
-                                FOREIGN KEY(DEST_TAGID) REFERENCES TAGS(ID),
+                                FOREIGN KEY(SRC_TAGID) REFERENCES TAGS(ID) ON DELETE CASCADE,
+                                FOREIGN KEY(DEST_TAGID) REFERENCES TAGS(ID) ON DELETE CASCADE,
                                 PRIMARY KEY(SRC_TAGID, DEST_TAGID)
 
                             );''')

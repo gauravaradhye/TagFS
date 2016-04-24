@@ -1,0 +1,3 @@
+#!/bin/bash
+
+python /home/aniket/bin/TBFS/pythonInterface.py $PWD tagr $1

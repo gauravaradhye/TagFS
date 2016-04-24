@@ -36,12 +36,14 @@ class CommandHandler:
             print "use lstag to see all tagged files in PWD"
             print "use tag <filename> <tagname> to tag a file"
             print "use exit to exit the program" 
+        elif command == "tagr":
+            os.system("echo %s >> %s/.tagr" %(tagdata, cwd))
         else:
             print "Command not found, use lscmd to see list of available commands"
 
 
 def main(cwd, *args):
-    with open('/usr/local/bin/TBFS/config.json') as config_file:  
+    with open('/home/aniket/bin/TBFS/config.json') as config_file:  
         config = json.load(config_file)
     db_conn = sqlite3.connect(config["path"]+"/TBFS/tags.db");
     chandler = CommandHandler(db_conn)

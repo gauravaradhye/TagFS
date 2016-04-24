@@ -202,6 +202,9 @@ class Passthrough(Operations):
     def __init__(self, root):
         self.db_conn = Database().initialize()
         self.root = root
+        print(root)
+        self.initialize(root)
+        # self.index_root(root)
 
     # Helpers
     # =======
@@ -253,6 +256,18 @@ class Passthrough(Operations):
             
 
 
+    
+    # Helpers
+    # =======
+    def initialize(self, root):
+        for sub_path in os.listdir(root):
+            # print(sub_path)
+            full_path = self._full_path(sub_path)
+            mode = os.stat(full_path)[ST_MODE]
+            if(S_ISREG(mode)):
+                self.parse_metadata(full_path.decode('utf-8'))
+                
+
     def ls_tags(self, path, buf):
         orig_path = path
         for command in buf.splitlines():
@@ -294,6 +309,8 @@ class Passthrough(Operations):
                 print ",".join(related_tags)
                 print "\n\n===============================================================================================\n"
             
+
+
     def get_files(self, path, buf):
         
         orig_path = path
@@ -320,9 +337,7 @@ class Passthrough(Operations):
             for row in cursor:
                 result.add(row[0])
             result = list(result)
-
             result_path = "/Users/Rahul/Desktop/results/"
-
             for x in result:
                 print x 
             print "Result is in", result_path
@@ -341,29 +356,42 @@ class Passthrough(Operations):
                 path = os.path.join(result_path, partial)
                 os.symlink(filepath, path)
 
-            #FUSE(ResultsFS('/Users/gauravaradhye/Desktop/results/', result), '/Users/gauravaradhye/Desktop/results-mp', foreground=True)
-            
-    def parseMetadata(self, path):
-        if(os.path.splitext(path)[1][1:].lower() in ['mp3','bzip2','gzip','zip','tar','wav','midi','bmp','gif','jpeg','jpg','png','tiff','exe','wmv','mkv','mov']):
-            full_path = self._full_path(path)
+            #FUSE(ResultsFS('/Users/Rahul/Desktop/results/', result), '/Users/Rahul/Desktop/results-mp', foreground=True)
+
+    def parse_metadata(self, full_path):
+        if(os.path.splitext(full_path)[1][1:].lower() in ['mp3','bzip2','gzip','zip','tar','wav','midi','bmp','gif','jpeg','jpg','png','tiff','exe','wmv','mkv','mov']):
+            # full_path = self._full_path(orig_path)
+            # print(full_path)
             parser = createParser(full_path)
             metalist = metadata.extractMetadata(parser).exportPlaintext()
             for item in metalist:
                 x = item.split(':')[0] 
                 if item.split(':')[0][2:].lower() in ["author","album","music genre"]:
-                    print(item.split(':')[1][1:])
-                    tag_name = item.split(':')[1][1:]
-                    files = MiscFunctions.getDirectoryFiles(full_path)
-                    for file in files:
-                        #print file
-                        #print full_path
-                        
-                        file_name = os.path.basename(path)
-                        MiscFunctions.storeTagInDB(file, tag_name, self.db_conn)
-                        
+                    # print(item.split(':')[1][1:])
+                    tag_name = item.split(':')[1][1:].split(',')
+                    print(tag_name)
+                    for names in tag_name:
+                        # inode = os.stat(full_path)[ST_INO
+                        tagname = names.strip()
+                        MiscFunctions.storeTagInDB(full_path, tagname, self.db_conn)    
+
             print("Database storage successful")
-        else:
-            return
+
+    def remove_tags(self, path, buf):
+        orig_path = path
+        print "Removing Tag %s" %buf
+        for command in buf.splitlines():
+            contents = command.strip()
+            tag_name = contents
+            try:
+                query = "DELETE FROM TAGS WHERE NAME = (?)"
+                self.db_conn.execute("PRAGMA FOREIGN_KEYS = ON")
+                self.db_conn.execute(query, [tag_name]);
+            except sqlite3.IntegrityError:
+                pass
+            self.db_conn.commit()
+            # self.db_conn.execute(query, [tag_name])
+
 
     def rel_tags(self, path, buf):
         orig_path = path
@@ -400,6 +428,7 @@ class Passthrough(Operations):
     # ==================
 
     def access(self, path, mode):
+        # print(path)
         full_path = self._full_path(path)
         if not os.access(full_path, mode):
             raise FuseOSError(errno.EACCES)
@@ -435,7 +464,6 @@ class Passthrough(Operations):
             return pathname
 
     def mknod(self, path, mode, dev):
-        print("Inside")
         return os.mknod(self._full_path(path), mode, dev)
 
     def rmdir(self, path):
@@ -503,8 +531,10 @@ class Passthrough(Operations):
             self.get_files(path, buf)
         elif ntpath.basename(path) == ".graph":
             self.rel_tags(path, buf)
+        elif ntpath.basename(path) == ".tagr":
+            self.remove_tags(path, buf)
         if (ntpath.basename(path) in ['.tag', '.ls', '.gf', '.graph']):
-            os.unlink(self._full_path(path))
+            os.unlink(self._full_path(ath))
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
 
@@ -517,24 +547,8 @@ class Passthrough(Operations):
         return os.fsync(fh)
 
     def release(self, path, fh):
-        if(os.path.splitext(path)[1][1:].lower() in ['mp3','bzip2','gzip','zip','tar','wav','midi','bmp','gif','jpeg','jpg','png','tiff','exe','wmv','mkv','mov']):
-            full_path = self._full_path(path)
-            parser = createParser(full_path)
-            metalist = metadata.extractMetadata(parser).exportPlaintext()
-            for item in metalist:
-                x = item.split(':')[0] 
-                if item.split(':')[0][2:].lower() in ["author","album","music genre"]:
-                    #print(item.split(':')[1][1:])
-                    tag_name = item.split(':')[1][1:]
-                    files = MiscFunctions.getDirectoryFiles(full_path)
-                    for file in files:
-                        #print file
-                        #print full_path
-                        
-                        file_name = os.path.basename(path)
-                        MiscFunctions.storeTagInDB(file, tag_name, self.db_conn)
-                        
-            print("Database storage successful")
+        full_path = self._full_path(path)
+        self.parse_metadata(full_path)
         return os.close(fh)
 
     def fsync(self, path, fdatasync, fh):

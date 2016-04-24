@@ -1,5 +1,5 @@
 if [ $# -eq 0 ]; then
-    setupPath="/usr/local/bin"
+    setupPath="/home/aniket/bin"
 else
     setupPath=$1
 fi
@@ -22,6 +22,8 @@ chmod +x ${setupPath}/tag
 cp tagfs ${setupPath}/
 chmod +x ${setupPath}/tagfs
 
+cp tagr ${setupPath}/
+chmod +x ${setupPath}/tagr
 
 cp getfiles ${setupPath}/
 chmod +x ${setupPath}/getfiles 
