@@ -1,2 +1,2 @@
 #!/bin/bash
-python /usr/local/bin/TBFS/pythonInterface.py $PWD lstag $1 $2
+python /usr/local/bin/TBFS/pythonInterface.py $PWD lstag "$1" "$2"
