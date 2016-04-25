@@ -286,7 +286,7 @@ class MiscFunctions:
                     for names in tag_name:
                         # inode = os.stat(full_path)[ST_INO
                         tagname = names.strip()
-                        MiscFunctions.storeTagInDB(full_path, tagname, self.db_conn)
+                        MiscFunctions.storeTagInDB(full_path, tagname, db_conn)
 
             print("Database storage successful")
         elif file_ext in ["docx", "doc", "txt"]:
