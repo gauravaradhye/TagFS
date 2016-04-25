@@ -253,8 +253,6 @@ class MiscFunctions:
         if (file_extension == ".txt"):
             print "inside handle text, path is %s" % file_path
             text = nltk.corpus.inaugural.words(file_path)
-            if text._len is None:
-                getFreqWords = False
         elif (file_extension in [".docx", ".doc"]):
             text = docx2txt.process(file_path).split()
             text = [word.encode("utf-8") for word in text]
