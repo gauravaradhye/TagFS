@@ -143,16 +143,16 @@ class MiscFunctions:
         return y
 
     @classmethod
-    def storeTagInDB(cls, file_name, tag_name, db_conn):
+    def storeTagInDB(cls, file_name, tag_name, db_conn, is_system_tag=0):
         tag_name = tag_name.lower()
         file_name = file_name.lower()
         tag_id = MiscFunctions.getTagID(tag_name, db_conn)
         if(tag_id==-1):
             db_conn.execute("INSERT INTO TAGS (NAME) VALUES (?)", [tag_name])
         tag_id = MiscFunctions.getTagID(tag_name, db_conn)
-        params = (file_name, tag_id)
+        params = (file_name, tag_id, is_system_tag)
         try:
-            db_conn.execute("INSERT INTO FILES (PATH, TAGID) VALUES (?,?)", params);
+            db_conn.execute("INSERT INTO FILES (PATH, TAGID, SYSTEM_TAG) VALUES (?,?,?)", params);
             db_conn.commit()
         except sqlite3.IntegrityError as e:
             print e
@@ -249,13 +249,58 @@ class MiscFunctions:
 
         file_path = file_path.lower()
         filename, file_extension = os.path.splitext(file_path)
+        getFreqWords = True
         if (file_extension == ".txt"):
+            print "inside handle text, path is %s" % file_path
             text = nltk.corpus.inaugural.words(file_path)
+            if text._len is None:
+                getFreqWords = False
         elif (file_extension in [".docx", ".doc"]):
             text = docx2txt.process(file_path).split()
             text = [word.encode("utf-8") for word in text]
-            print text
-        return MiscFunctions.getNFrequentWords(text, 3)
+            if len(text) == 0:
+                getFreqWords = False
+        if getFreqWords:
+            return MiscFunctions.getNFrequentWords(text, 3)
+        else:
+            return []
+
+    @classmethod
+    def parse_metadata(cls, full_path, db_conn):
+        file_ext = os.path.splitext(full_path)[1][1:].lower()
+        if(file_ext in ['mp3','bzip2','gzip','zip','tar','wav','midi','bmp','gif','jpeg','jpg','png','tiff','exe','wmv','mkv','mov']):
+            # full_path = self._full_path(orig_path)
+            # print(full_path)
+            parser = createParser(full_path)
+            metalist = metadata.extractMetadata(parser).exportPlaintext()
+            for item in metalist:
+                x = item.split(':')[0] 
+                if item.split(':')[0][2:].lower() in ["author","album","music genre"]:
+                    # print(item.split(':')[1][1:])
+                    item1 = item.split(':')[1][1:]
+                    new_item = str(item1.decode('utf-8'))
+                    print new_item
+                    new_item = string.replace(new_item, ";", ",")
+                    new_item = string.replace(new_item, "|", ",")
+                    tag_name = new_item.split(',')
+                    print(tag_name)
+                    for names in tag_name:
+                        # inode = os.stat(full_path)[ST_INO
+                        tagname = names.strip()
+                        MiscFunctions.storeTagInDB(full_path, tagname, self.db_conn)
+
+            print("Database storage successful")
+        elif file_ext in ["docx", "doc", "txt"]:
+            tags = MiscFunctions.handleTextFiles(full_path)
+            for tagname in tags:
+                print "txt file tag: %s" % tagname
+                MiscFunctions.storeTagInDB(full_path, tagname, db_conn, is_system_tag=1)
+
+    @classmethod
+    def update_system_tags(cls, file_path, db_conn):
+        cursor = db_conn.execute("DELETE from FILES WHERE SYSTEM_TAG = ? AND PATH=?", ("1", file_path))
+        db_conn.commit()
+        cls.parse_metadata(file_path, db_conn)
 
 
 class Passthrough(Operations):
@@ -297,13 +342,6 @@ class Passthrough(Operations):
                 tag_name = contents[1]
                 file_path = self._full_path(orig_path[:-4] + file_name)
                 if(operation == 'add'):
-                    filename, file_extension = os.path.splitext(file_path)
-                    print file_extension
-                    if (file_extension == ".txt"):
-                        print "inside"
-                        freq_words = MiscFunctions.getNFrequentWords(nltk.corpus.inaugural.words(file_path), 3)
-                        for word in freq_words:
-                            print word
                     if MiscFunctions.FileExists(file_path):
                         MiscFunctions.storeTagInDB(file_path, tag_name, self.db_conn)
                     else:
@@ -321,7 +359,7 @@ class Passthrough(Operations):
             print sub_path
             mode = os.stat(sub_path)[ST_MODE]
             if(S_ISREG(mode)):
-                self.parse_metadata(sub_path.decode('utf-8'))
+                MiscFunctions.parse_metadata(sub_path.decode('utf-8'), self.db_conn)
                 
 
     def ls_tags(self, path, buf):
@@ -457,37 +495,6 @@ class Passthrough(Operations):
                     os.symlink(filepath, path)
                 except:
                     pass
-
-
-    def parse_metadata(self, full_path):
-        file_ext = os.path.splitext(full_path)[1][1:].lower()
-        if(file_ext in ['mp3','bzip2','gzip','zip','tar','wav','midi','bmp','gif','jpeg','jpg','png','tiff','exe','wmv','mkv','mov']):
-            # full_path = self._full_path(orig_path)
-            # print(full_path)
-            parser = createParser(full_path)
-            metalist = metadata.extractMetadata(parser).exportPlaintext()
-            for item in metalist:
-                x = item.split(':')[0] 
-                if item.split(':')[0][2:].lower() in ["author","album","music genre"]:
-                    # print(item.split(':')[1][1:])
-                    item1 = item.split(':')[1][1:]
-                    new_item = str(item1.decode('utf-8'))
-                    print new_item
-                    new_item = string.replace(new_item, ";", ",")
-                    new_item = string.replace(new_item, "|", ",")
-                    tag_name = new_item.split(',')
-                    print(tag_name)
-                    for names in tag_name:
-                        # inode = os.stat(full_path)[ST_INO
-                        tagname = names.strip()
-                        MiscFunctions.storeTagInDB(full_path, tagname, self.db_conn)
-
-            print("Database storage successful")
-        elif file_ext in ["docx", "doc", "txt"]:
-            tags = MiscFunctions.handleTextFiles(full_path)
-            for tagname in tags:
-                print "txt file tag: %s" % tagname
-                MiscFunctions.storeTagInDB(full_path, tagname, self.db_conn)
 
     def remove_tags(self, path, buf):
         orig_path = path
@@ -708,22 +715,26 @@ class Passthrough(Operations):
         return os.read(fh, length)
 
     def write(self, path, buf, offset, fh):
-        if ntpath.basename(path) == ".tag":
+        file_name = ntpath.basename(path);
+        name, file_extension = os.path.splitext(path)
+        if file_name == ".tag":
             self.add_tag(path, buf)
-        elif ntpath.basename(path) == ".ls":
+        elif file_name == ".ls":
             self.ls_tags(path, buf)
-        elif ntpath.basename(path) == ".gf":
+        elif file_name == ".gf":
             self.get_files(path, buf)
-        elif ntpath.basename(path) == ".graph":
+        elif file_name == ".graph":
             self.rel_tags(path, buf)
-        elif ntpath.basename(path) == ".tagr":
+        elif file_name == ".tagr":
             self.remove_tags(path, buf)
-        elif ntpath.basename(path) == ".searchq":
+        elif file_name == ".searchq":
             if(buf.find("AND") or buf.find("OR")):
                 self.bool_exp(path, buf)
             else:
                 print("Unsupported query. Please make necessary changes.")
-        if(ntpath.basename(path) in [".tag", ".ls", ".gf", ".graph", ".tagr", ".searchq"]):
+        elif file_extension in [".txt", ".doc", ".docx"]:
+            MiscFunctions.update_system_tags(self._full_path(path), self.db_conn)
+        if(file_name in [".tag", ".ls", ".gf", ".graph", ".tagr", ".searchq"]):
             os.unlink(self._full_path(path))
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
@@ -738,7 +749,7 @@ class Passthrough(Operations):
 
     def release(self, path, fh):
         full_path = self._full_path(path)
-        self.parse_metadata(full_path)
+        MiscFunctions.parse_metadata(full_path, self.db_conn)
         return os.close(fh)
 
     def fsync(self, path, fdatasync, fh):

@@ -23,9 +23,9 @@ class Database:
                             (   
                                 PATH TEXT,
                                 TAGID INTEGER,
+                                SYSTEM_TAG INTEGER DEFAULT 0,
                                 FOREIGN KEY(TAGID) REFERENCES TAGS(ID) ON DELETE CASCADE,
                                 PRIMARY KEY(TAGID, PATH)
-
                             );''')
 
         self.conn.execute('''CREATE TABLE IF NOT EXISTS TAGS 
