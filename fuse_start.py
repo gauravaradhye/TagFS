@@ -233,10 +233,11 @@ class MiscFunctions:
         without_stp  = Counter()
         dictionary = enchant.Dict("en_US")
         stemmer = SnowballStemmer("english")
+        exclude_set = set(string.punctuation)
         for word in nltkObj:
             # update count off all words in the line that are in stopwords
             word = word.lower()
-            if word not in stopwords:
+            if word not in stopwords and word not in exclude_set:
             # update count off all words in the line that are not in stopwords
                 if dictionary.check(word):
                     word = stemmer.stem(word)
@@ -251,8 +252,8 @@ class MiscFunctions:
         filename, file_extension = os.path.splitext(file_path)
         getFreqWords = True
         if (file_extension == ".txt"):
-            print "inside handle text, path is %s" % file_path
-            text = nltk.corpus.inaugural.words(file_path)
+            with open(file_path) as inp:
+                text = inp.read().split()
         elif (file_extension in [".docx", ".doc"]):
             text = docx2txt.process(file_path).split()
             text = [word.encode("utf-8") for word in text]
