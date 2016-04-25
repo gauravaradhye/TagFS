@@ -44,3 +44,5 @@ cp fuse_start.py ${setupPath}/TBFS/
 cp results.py ${setupPath}/TBFS/
 cp database.py ${setupPath}/TBFS/
 cp graph.py ${setupPath}/TBFS/
+
+rm ${setupPath}/TBFS/tags.db
