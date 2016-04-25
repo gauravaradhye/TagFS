@@ -397,7 +397,12 @@ class Passthrough(Operations):
                 x = item.split(':')[0] 
                 if item.split(':')[0][2:].lower() in ["author","album","music genre"]:
                     # print(item.split(':')[1][1:])
-                    tag_name = item.split(':')[1][1:].split(',')
+                    item1 = item.split(':')[1][1:]
+                    new_item = str(item1.decode('utf-8'))
+                    print new_item
+                    new_item = string.replace(new_item, ";", ",")
+                    new_item = string.replace(new_item, "|", ",")
+                    tag_name = new_item.split(',')
                     print(tag_name)
                     for names in tag_name:
                         # inode = os.stat(full_path)[ST_INO
