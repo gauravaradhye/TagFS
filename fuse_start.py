@@ -233,15 +233,19 @@ class MiscFunctions:
         without_stp  = Counter()
         dictionary = enchant.Dict("en_US")
         stemmer = SnowballStemmer("english")
-        exclude_set = set(string.punctuation)
-        for word in nltkObj:
-            # update count off all words in the line that are in stopwords
-            word = word.lower()
-            if word not in stopwords and word not in exclude_set:
-            # update count off all words in the line that are not in stopwords
-                if dictionary.check(word):
-                    word = stemmer.stem(word)
-                    without_stp.update([word])
+        try:
+            exclude_set = set(string.punctuation)
+            for word in nltkObj:
+                # update count off all words in the line that are in stopwords
+                word = word.lower()
+                word = word.decode("utf-8")
+                if word not in stopwords and word not in exclude_set:
+                # update count off all words in the line that are not in stopwords
+                    if dictionary.check(word):
+                        word = stemmer.stem(word)
+                        without_stp.update([word])
+        except Exception as e:
+            pass
         # return a list with top ten most common words from each
         return [y for y,_ in without_stp.most_common(n)]
 
@@ -286,7 +290,7 @@ class MiscFunctions:
                     for names in tag_name:
                         # inode = os.stat(full_path)[ST_INO
                         tagname = names.strip()
-                        MiscFunctions.storeTagInDB(full_path, tagname, db_conn)
+                        MiscFunctions.storeTagInDB(full_path, tagname, db_conn, is_system_tag=1)
 
             print("Database storage successful")
         elif file_ext in ["docx", "doc", "txt"]:
@@ -308,7 +312,6 @@ class Passthrough(Operations):
         self.root = root
         print(root)
         self.initialize(root)
-        # self.index_root(root)
 
     # Helpers
     # =======
