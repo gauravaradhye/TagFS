@@ -1,6 +1,35 @@
-TagFS - A Tag Based File System
 
-Developed by: 
-Gaurav Aradhye
-Rahul Shah
-Aniket Patel
+##Synopsis
+
+TagFS is a semantic system which is used to improve the user experience by adding tags to the files. These tags have relationship and can represented via our graph based model.
+
+##Code Example
+
+Mount the directory on mountpoint
+
+<code>tagfs ~/path/to/mount-dir ~/path/to/mountpoint</code>
+
+Tag a file
+
+<code>tag add filename tagname</code>
+
+Add a relationship between tags
+
+<code>tagrel add tag1 tag2</code> 
+
+Retrieve files tagged as tag1
+
+<code>getfiles tag1</code>
+
+
+##Installation
+
+In order to install the packages, please install the repository and run the setup.sh file from the project folder.
+
+<code>sh setup.sh</code>
+
+
+##Contributors
+Gaurav Aradhye (garadhy@ncsu.edu)<br>
+Rahul Shah (rshah5@ncsu.edu)<br>
+Aniket Patel (apatel10@ncsu.edu)
