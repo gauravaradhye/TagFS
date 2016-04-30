@@ -36,6 +36,16 @@ In order to install the packages, please install the repository and run the setu
 **fuse-start.py** 	   - script that has all the user's level implementation of fuse<br>
 **pythonInterface.py** - driver program to invoke fuse<br>
 
+##Dependencies
+
+<ol>
+	<li>hachoir-metadata</li>
+	<li>hachoir-core</li>
+	<li>hachoir-parser</li>
+	<li>pyechant</li>
+	<li>docx2txt</li>
+	<li>nltk</li>
+</ol>
 
 ##Contributors
 Gaurav Aradhye (garadhy@ncsu.edu)<br>
