@@ -22,11 +22,19 @@ Retrieve files tagged as tag1
 <code>getfiles tag1</code>
 
 
+
 ##Installation
 
 In order to install the packages, please install the repository and run the setup.sh file from the project folder.
 
 <code>sh setup.sh</code>
+
+##Important Files
+
+**database.py**        - used to create the database object and shoot the initial queries<br>
+**graph.py**           - used to create the actual graphical representation of the tag-to-tag relationship<br>
+**fuse-start.py** 	   - script that has all the user's level implementation of fuse<br>
+**pythonInterface.py** - driver program to invoke fuse<br>
 
 
 ##Contributors
