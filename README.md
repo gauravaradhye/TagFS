@@ -3,6 +3,8 @@
 
 TagFS is a semantic system which is used to improve the user experience by adding tags to the files. These tags have relationship and can represented via our graph based model.
 
+Please refer to our github repository for latest changes: <a>https://github.com/rahulpshah/tagfs</a>
+
 ##Code Example
 
 Mount the directory on mountpoint
@@ -20,7 +22,6 @@ Add a relationship between tags
 Retrieve files tagged as tag1
 
 <code>getfiles tag1</code>
-
 
 
 ##Installation
